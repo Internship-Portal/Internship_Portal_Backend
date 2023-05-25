@@ -9,6 +9,9 @@ app.use(cors());
 import router from "./routes/officer";
 app.use("/api/officer", router);
 
+import CompanyRouter from "./routes/Company";
+app.use("/api/company", CompanyRouter);
+
 connects();
 
 app.listen(PORT, HOSTNAME, () => {

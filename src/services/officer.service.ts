@@ -17,6 +17,14 @@ export const findOfficer = (
   return OfficerModel.find(query, {}, options);
 };
 
+export function findAndUpdate(
+  query: FilterQuery<Officer>,
+  update: UpdateQuery<Officer>,
+  options: QueryOptions
+) {
+  return OfficerModel.findOneAndUpdate(query, update, options);
+}
+
 export const deleteOfficer = (query: FilterQuery<Officer>) => {
   return OfficerModel.deleteOne(query);
 };

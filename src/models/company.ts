@@ -1,52 +1,18 @@
-import mongoose, { Schema, Document, Types } from "mongoose";
+import { model, Schema, Document, Types } from "mongoose";
+import { Department, DepartmentSchema } from "./officer";
 
-// Shared reference schema
-interface Department extends Document {
-  _id: Types.ObjectId;
-  name: string;
-  student_details: Types.ObjectId[];
-  expirationTime: Date;
-}
-
-const DepartmentSchema = new Schema<Department>({
-  _id: {
-    type: Schema.Types.ObjectId,
-    default: new Types.ObjectId(),
-  },
-  name: {
-    type: String,
-  },
-  student_details: [
-    {
-      type: Schema.Types.ObjectId,
-      ref: "Student",
-    },
-  ],
-  expirationTime: {
-    type: Date,
-    expires: "0s", // Set the TTL index to expire documents immediately
-    default: () => new Date(),
-  },
-});
-
-const DepartmentModel = mongoose.model<Department>(
-  "Department",
-  DepartmentSchema
-);
-
-// Officer model
-interface Officer extends Document {
+export interface Details {
   _id: Types.ObjectId;
   name: string;
   email_id: string;
   college_name: string;
-  details: Types.ObjectId[];
+  details: Department[];
 }
 
-const OfficerSchema = new Schema<Officer>({
+const DetailsSchema = new Schema<Details>({
   _id: {
     type: Schema.Types.ObjectId,
-    default: new Types.ObjectId(),
+    default: () => new Types.ObjectId(),
   },
   name: {
     type: String,
@@ -60,22 +26,18 @@ const OfficerSchema = new Schema<Officer>({
     type: String,
     required: true,
   },
-  details: [
-    {
-      type: Schema.Types.ObjectId,
-      ref: "Department",
-    },
-  ],
+  details: {
+    type: [DepartmentSchema],
+  },
 });
 
-const OfficerModel = mongoose.model<Officer>("Officer", OfficerSchema);
-
 // Company model
-interface Company extends Document {
+export interface Company extends Document {
   _id: Types.ObjectId;
   name: string;
   companydescription: string;
-  details: Types.ObjectId[];
+  email_id: string;
+  detailsOfficer: Details[];
 }
 
 const CompanySchema = new Schema<Company>({
@@ -86,15 +48,17 @@ const CompanySchema = new Schema<Company>({
   name: {
     type: String,
   },
+  email_id: {
+    type: String,
+  },
   companydescription: {
     type: String,
   },
-  details: [
-    {
-      type: Schema.Types.ObjectId,
-      ref: "Department",
-    },
-  ],
+  detailsOfficer: {
+    type: [DetailsSchema],
+  },
 });
 
-const CompanyModel = mongoose.model<Company>("Company", CompanySchema);
+const CompanyModel = model<Company>("Company", CompanySchema);
+
+export default CompanyModel;

@@ -1,13 +1,19 @@
 import { Schema, model, Document, Types } from "mongoose";
 
-interface Students {
+export interface Students {
   _id: Types.ObjectId;
   name: string;
   cgpa: number;
   year_batch: number;
 }
 
-interface Department {
+export interface SharedDetails {
+  _id: Types.ObjectId;
+  company_id: string;
+  details_id: string;
+}
+
+export interface Department {
   _id: Types.ObjectId;
   name: string;
   student_details: Students[];
@@ -19,9 +25,23 @@ export interface Officer extends Document {
   email_id: string;
   college_name: string;
   details: Department[];
+  sharedCompany: SharedDetails[];
 }
 
-const StudentsSchema = new Schema<Students>({
+export const SharedDetailsSchema = new Schema<SharedDetails>({
+  _id: {
+    type: Schema.Types.ObjectId,
+    default: new Types.ObjectId(),
+  },
+  company_id: {
+    type: String,
+  },
+  details_id: {
+    type: String,
+  },
+});
+
+export const StudentsSchema = new Schema<Students>({
   _id: {
     type: Schema.Types.ObjectId,
     default: new Types.ObjectId(),
@@ -37,7 +57,7 @@ const StudentsSchema = new Schema<Students>({
   },
 });
 
-const DepartmentSchema = new Schema<Department>({
+export const DepartmentSchema = new Schema<Department>({
   _id: {
     type: Schema.Types.ObjectId,
     default: new Types.ObjectId(),
@@ -69,6 +89,9 @@ const OfficerSchema = new Schema<Officer>({
   },
   details: {
     type: [DepartmentSchema],
+  },
+  sharedCompany: {
+    type: [SharedDetailsSchema],
   },
 });
 
