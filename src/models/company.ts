@@ -2,7 +2,6 @@ import { model, Schema, Document, Types } from "mongoose";
 import { Department, DepartmentSchema } from "./officer";
 
 export interface Details {
-  _id: Types.ObjectId;
   name: string;
   email_id: string;
   college_name: string;
@@ -10,10 +9,6 @@ export interface Details {
 }
 
 const DetailsSchema = new Schema<Details>({
-  _id: {
-    type: Schema.Types.ObjectId,
-    default: () => new Types.ObjectId(),
-  },
   name: {
     type: String,
     required: true,
@@ -33,22 +28,21 @@ const DetailsSchema = new Schema<Details>({
 
 // Company model
 export interface Company extends Document {
-  _id: Types.ObjectId;
   name: string;
   companydescription: string;
+  imageURL: string;
   email_id: string;
   detailsOfficer: Details[];
 }
 
 const CompanySchema = new Schema<Company>({
-  _id: {
-    type: Schema.Types.ObjectId,
-    default: new Types.ObjectId(),
-  },
   name: {
     type: String,
   },
   email_id: {
+    type: String,
+  },
+  imageURL: {
     type: String,
   },
   companydescription: {

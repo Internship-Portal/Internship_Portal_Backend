@@ -1,7 +1,7 @@
 import mongoose, { connect } from "mongoose";
 
 function connects() {
-  return connect("mongodb://0.0.0.0:27017/student")
+  return connect("mongodb+srv://admin:admin@imdb.11npizj.mongodb.net/student")
     .then(() => {
       console.log("Mongo Connected");
     })

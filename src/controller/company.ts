@@ -11,16 +11,16 @@ import {
 export const createCompanyController = async (
   req: Request,
   res: Response
-): Promise<void> => {
+): Promise<any> => {
   try {
     const company = await createCompany({
-      _id: new Types.ObjectId(),
       name: req.body.name,
+      imageURL: req.body.imageURL,
       email_id: req.body.email_id,
       companydescription: req.body.companydescription,
       detailsOfficer: [],
     });
-    res.status(200).json({
+    return res.status(200).json({
       message: "This is Company's Create Page",
       data: company,
     });
@@ -32,11 +32,11 @@ export const createCompanyController = async (
 export const findCompanyController = async (
   req: Request,
   res: Response
-): Promise<void> => {
+): Promise<any> => {
   try {
     const filter = { _id: req.params.id };
     let data = await findCompany(filter);
-    res.status(200).json({
+    return res.status(200).json({
       message: "This is Company's Find Page",
       data: data,
     });
@@ -48,11 +48,11 @@ export const findCompanyController = async (
 export const deleteCompanyController = async (
   req: Request,
   res: Response
-): Promise<void> => {
+): Promise<any> => {
   try {
     const filter = { _id: req.params.id };
     let data = await deleteCompany(filter);
-    res.status(200).json({
+    return res.status(200).json({
       message: "This is Company's Delete Page",
       data: data,
     });
@@ -64,7 +64,7 @@ export const deleteCompanyController = async (
 export const addOfficerDetailsController = async (
   req: Request,
   res: Response
-): Promise<void> => {
+): Promise<any> => {
   try {
     const filter = { _id: req.params.id };
     let data = await findAndUpdate(
@@ -72,7 +72,7 @@ export const addOfficerDetailsController = async (
       { $push: { detailsOfficer: req.body.detailsOfficer } },
       { new: true }
     );
-    res.status(200).json({
+    return res.status(200).json({
       message: "This is Company's department access details page",
       data: data,
     });
@@ -83,7 +83,7 @@ export const addOfficerDetailsController = async (
 export const removeOfficerDetailsController = async (
   req: Request,
   res: Response
-): Promise<void> => {
+): Promise<any> => {
   try {
     const filter = { _id: req.params.id };
     const detailsOfficerId = req.body._id;
@@ -92,7 +92,7 @@ export const removeOfficerDetailsController = async (
       { $pull: { detailsOfficer: { _id: detailsOfficerId } } },
       { new: true }
     );
-    res.status(200).json({
+    return res.status(200).json({
       message: "This is Company's department remove details page",
       data: data,
     });
@@ -104,10 +104,10 @@ export const removeOfficerDetailsController = async (
 export const getAllCompanyController = async (
   req: Request,
   res: Response
-): Promise<void> => {
+): Promise<any> => {
   try {
     let data = await CompanyModel.find();
-    res.status(200).json({
+    return res.status(200).json({
       message: "This is company's getAll Page",
       data: data,
     });

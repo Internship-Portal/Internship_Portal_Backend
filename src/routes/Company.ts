@@ -16,7 +16,7 @@ router.post("/createCompany", createCompanyController);
 router.get("/getOneCompany/:id", findCompanyController);
 router.delete("/deleteCompany/:id", deleteCompanyController);
 router.post("/addOfficerDetails/:id", addOfficerDetailsController);
-router.delete("/removeOfficerDetails/:id", removeOfficerDetailsController);
+router.post("/removeOfficerDetails/:id", removeOfficerDetailsController);
 router.get("/getAll", getAllCompanyController);
 
 export default router;
