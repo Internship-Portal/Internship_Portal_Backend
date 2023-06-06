@@ -12,6 +12,7 @@ import {
 router.use(BodyParser.json());
 router.use(BodyParser.urlencoded({ extended: true }));
 
+// Routes connected to the controllers companies function
 router.post("/createCompany", createCompanyController);
 router.get("/getOneCompany/:id", findCompanyController);
 router.delete("/deleteCompany/:id", deleteCompanyController);

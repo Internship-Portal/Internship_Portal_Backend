@@ -1,84 +1,77 @@
 import { Schema, model, Document, Types } from "mongoose";
 
+// ----------------------------------- subscribeRequest Interface
+export interface subscribeRequest {
+  company_id: string;
+}
+// ----------------------------------- subscribeRequest Interface
+
+// ----------------------------------- subscribedCompany Interface
+export interface subscribedCompany {
+  company_id: string;
+}
+// ----------------------------------- subscribedCompany Interface
+
+// -------------------------------------------- Students Interface
 export interface Students {
   name: string;
   email_id: string;
   college_name: string;
+  location: string;
   mobile_no: number;
-  // imageURL: string;
   branch: string;
   roll_no: string;
   achievements: [string];
+  skills: [string];
   hobbies: [string];
   cgpa: number;
-  year_batch: number;
+  unavailable_dates: [Date];
+  internship_status: boolean;
+  tenth_percentage: number;
+  twelve_percentage: number;
+  diploma_percentage: number;
 }
+// -------------------------------------------- Students Interface
 
-export interface details_shared {
-  shared_id: string;
-  details_id: string;
-}
-
-export interface SharedDetails {
-  company_id: string;
-  details_shared: details_shared[];
-}
-
+// ----------------------------------------- Department Interface
 export interface Department {
-  name: string;
+  department: string;
+  year_batch: number;
   student_details: Students[];
 }
+// ----------------------------------------- Department Interface
 
-export interface subscribeRequest {
-  company_id: string;
-}
-
-export interface subscribedCompany {
-  company_id: string;
-}
-
+// -------------------------------------------- Officer Interface
 export interface Officer extends Document {
   name: string;
   email_id: string;
-  mobile_no: number;
-  imageURL: string;
-  subscribeRequest: subscribeRequest[];
-  subscribedCompany: subscribedCompany[];
+  mobile_no: string;
+  imageurl: string;
+  subscriberequest: subscribeRequest[];
+  subscribedcompany: subscribedCompany[];
   college_name: string;
   college_details: Department[];
-  sharedtoCompany: SharedDetails[];
 }
+// -------------------------------------------- Officer Interface
 
+// ----------------------------------- subscribedCompany Schema
 export const subscribedCompany = new Schema<subscribedCompany>({
   company_id: {
     type: String,
   },
 });
+// ----------------------------------- subscribedCompany Schema
+
+// ----------------------------------- subscribeRequest Schema
 
 export const subscribeRequest = new Schema<subscribeRequest>({
   company_id: {
     type: String,
   },
 });
+// ----------------------------------- subscribeRequest Schema
 
-export const details_shared = new Schema<details_shared>({
-  shared_id: {
-    type: String,
-  },
-  details_id: {
-    type: String,
-  },
-});
-
-export const SharedDetailsSchema = new Schema<SharedDetails>({
-  company_id: {
-    type: String,
-  },
-  details_shared: {
-    type: [details_shared],
-  },
-});
-
+// --------------------------------------------- Student Schema
 export const StudentsSchema = new Schema<Students>({
   name: {
     type: String,
@@ -91,6 +84,9 @@ export const StudentsSchema = new Schema<Students>({
   college_name: {
     type: String,
     required: true,
+  },
+  location: {
+    type: String,
   },
   mobile_no: {
     type: Number,
@@ -106,48 +102,60 @@ export const StudentsSchema = new Schema<Students>({
   },
   achievements: {
     type: [String],
-    required: true,
+  },
+  skills: {
+    type: [String],
   },
   hobbies: {
     type: [String],
-    required: true,
   },
   cgpa: {
     type: Number,
-    required: true,
+  },
+  unavailable_dates: {
+    type: [Date],
+  },
+  internship_status: {
+    type: Boolean,
+  },
+  tenth_percentage: {
+    type: Number,
+  },
+  twelve_percentage: {
+    type: Number,
+  },
+  diploma_percentage: {
+    type: Number,
+  },
+});
+// ----------------------------------------------- Student Schema
+
+// --------------------------------------------- Department Schema
+export const DepartmentSchema = new Schema<Department>({
+  department: {
+    type: String,
   },
   year_batch: {
     type: Number,
-    required: true,
-  },
-});
-
-export const DepartmentSchema = new Schema<Department>({
-  name: {
-    type: String,
   },
   student_details: {
     type: [StudentsSchema],
   },
 });
+// -------------------------------------------- Department Schema
 
+// ----------------------------------------------- Officer Schema
 const OfficerSchema = new Schema<Officer>({
   name: {
     type: String,
     required: true,
   },
-  imageURL: {
+  imageurl: {
     type: String,
   },
   mobile_no: {
-    type: Number,
+    type: String,
     required: true,
-  },
-  subscribeRequest: {
-    type: [subscribeRequest],
-  },
-  subscribedCompany: {
-    type: [subscribedCompany],
   },
   email_id: {
     type: String,
@@ -157,13 +165,17 @@ const OfficerSchema = new Schema<Officer>({
     type: String,
     required: true,
   },
+  subscriberequest: {
+    type: [subscribeRequest],
+  },
+  subscribedcompany: {
+    type: [subscribedCompany],
+  },
   college_details: {
     type: [DepartmentSchema],
   },
-  sharedtoCompany: {
-    type: [SharedDetailsSchema],
-  },
 });
+// ----------------------------------------------- Officer Schema
 
 const OfficerModel = model<Officer>("Officer", OfficerSchema);
 

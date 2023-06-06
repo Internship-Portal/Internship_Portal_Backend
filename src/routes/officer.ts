@@ -6,21 +6,18 @@ import {
   findOfficerController,
   deleteOfficerController,
   getAllOfficerController,
-  addCompanySharedDetails,
-  removeCompanySharedDetails,
-  addCollegeDetails,
-  removeCollegeDetails,
+  addDepartmentDetails,
+  removeDepartmentDetails,
 } from "../controller/officer";
 router.use(BodyParser.json());
 router.use(BodyParser.urlencoded({ extended: true }));
 
+// Routes connected to the controllers officers function
 router.post("/createOfficer", createOfficerController);
 router.get("/getOneOfficer/:id", findOfficerController);
 router.get("/getAll", getAllOfficerController);
 router.delete("/deleteOfficer/:id", deleteOfficerController);
-router.post("/addCollegeDetails/:id", addCollegeDetails);
-router.post("/removeCollegeDetails/:id", removeCollegeDetails);
-router.post("/addCompanyShared/:id", addCompanySharedDetails);
-router.post("/removeCompanyShared/:id", removeCompanySharedDetails);
+router.post("/addCollegeDetails/:id", addDepartmentDetails);
+router.post("/removeCollegeDetails/:id", removeDepartmentDetails);
 
 export default router;
