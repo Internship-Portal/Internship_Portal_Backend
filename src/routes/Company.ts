@@ -6,18 +6,22 @@ import {
   findCompanyController,
   deleteCompanyController,
   getAllCompanyController,
-  addOfficerDetailsController,
-  removeOfficerDetailsController,
 } from "../controller/company";
 router.use(BodyParser.json());
 router.use(BodyParser.urlencoded({ extended: true }));
 
 // Routes connected to the controllers companies function
+
+// Create Company Route
 router.post("/createCompany", createCompanyController);
+
+// Get One Company by Id
 router.get("/getOneCompany/:id", findCompanyController);
-router.delete("/deleteCompany/:id", deleteCompanyController);
-router.post("/addOfficerDetails/:id", addOfficerDetailsController);
-router.post("/removeOfficerDetails/:id", removeOfficerDetailsController);
+
+// Get All Companies
 router.get("/getAll", getAllCompanyController);
+
+// Delete Company by Id
+router.delete("/deleteCompany/:id", deleteCompanyController);
 
 export default router;

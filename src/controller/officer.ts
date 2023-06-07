@@ -8,19 +8,22 @@ import {
   findAndUpdate,
 } from "../services/officer.service";
 
+// Create Officer in the Backend Controller
 export const createOfficerController = async (
   req: Request,
   res: Response
 ): Promise<Response<any, Record<string, any>>> => {
   try {
     const user = await createOfficer({
-      name: req.body.name,
+      username: req.body.username,
+      index: req.body.index,
       imageurl: req.body.imageurl,
-      mobile_no: req.body.mobile_no,
       email_id: req.body.email_id,
+      mobile_no: req.body.mobile_no,
       college_name: req.body.college_name,
       subscriberequest: [],
       subscribedcompany: [],
+      cancelledcompany: [],
       college_details: [],
     });
     return res.status(200).json({
@@ -32,6 +35,7 @@ export const createOfficerController = async (
   }
 };
 
+// Find / Get One Officer by Id Controller
 export const findOfficerController = async (
   req: Request,
   res: Response
@@ -48,6 +52,19 @@ export const findOfficerController = async (
   }
 };
 
+// Get All Officer Controller
+export const getAllOfficerController = async (
+  req: Request,
+  res: Response
+): Promise<Response<any, Record<string, any>>> => {
+  let data = await OfficerModel.find();
+  return res.json({
+    message: "This is Officer getAll page",
+    data: data,
+  });
+};
+
+// Delete Officer by Id Controller
 export const deleteOfficerController = async (
   req: Request,
   res: Response
@@ -64,17 +81,7 @@ export const deleteOfficerController = async (
   }
 };
 
-export const getAllOfficerController = async (
-  req: Request,
-  res: Response
-): Promise<Response<any, Record<string, any>>> => {
-  let data = await OfficerModel.find();
-  return res.json({
-    message: "This is Officer getAll page",
-    data: data,
-  });
-};
-
+// Add the Students details Department and batch wise
 export const addDepartmentDetails = async (
   req: Request,
   res: Response
@@ -95,6 +102,7 @@ export const addDepartmentDetails = async (
   }
 };
 
+// Remove the Student details Department and batch wise
 export const removeDepartmentDetails = async (
   req: Request,
   res: Response

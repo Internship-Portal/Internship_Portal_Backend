@@ -8,6 +8,7 @@ import {
   findAndUpdate,
 } from "../services/company.service";
 
+// Create Company Controller
 export const createCompanyController = async (
   req: Request,
   res: Response
@@ -34,6 +35,7 @@ export const createCompanyController = async (
   }
 };
 
+// Find / Get One Company by id Controller
 export const findCompanyController = async (
   req: Request,
   res: Response
@@ -50,6 +52,23 @@ export const findCompanyController = async (
   }
 };
 
+// Get All Companies in Database Controller
+export const getAllCompanyController = async (
+  req: Request,
+  res: Response
+): Promise<any> => {
+  try {
+    let data = await CompanyModel.find();
+    return res.status(200).json({
+      message: "This is company's getAll Page",
+      data: data,
+    });
+  } catch (e) {
+    res.status(500).json({ message: "Server Error" });
+  }
+};
+
+// Delete Company by id Controller
 export const deleteCompanyController = async (
   req: Request,
   res: Response
@@ -59,21 +78,6 @@ export const deleteCompanyController = async (
     let data = await deleteCompany(filter);
     return res.status(200).json({
       message: "This is Company's Delete Page",
-      data: data,
-    });
-  } catch (e) {
-    res.status(500).json({ message: "Server Error" });
-  }
-};
-
-export const getAllCompanyController = async (
-  req: Request,
-  res: Response
-): Promise<any> => {
-  try {
-    let data = await CompanyModel.find();
-    return res.status(200).json({
-      message: "This is company's getAll Page",
       data: data,
     });
   } catch (e) {

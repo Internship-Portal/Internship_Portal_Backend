@@ -1,22 +1,27 @@
 import { Schema, model, Document, Types } from "mongoose";
 
 // Selected Students by Company Department wise student storing--
+
 export interface selectedStudentsDepartwise {
   student_id: string;
   index: number;
 }
+
 // Selected Students by Company Department wise student storing--
 
 // Selected Students by Company Interface --------------------------
+
 export interface selectedStudents {
   department_name: string;
   year_batch: string;
   date: Date;
   selectedstudents: selectedStudentsDepartwise[];
 }
+
 // Selected Students by Company Interface --------------------------
 
 // ----------------------------------- subscribeRequest Interface
+
 export interface subscribeRequest {
   company_id: string;
   username: string;
@@ -26,9 +31,11 @@ export interface subscribeRequest {
   company_name: string;
   company_description: string;
 }
+
 // ----------------------------------- subscribeRequest Interface
 
 // ----------------------------------- subscribedCompany Interface
+
 export interface subscribedCompany {
   company_id: string;
   username: string;
@@ -39,9 +46,11 @@ export interface subscribedCompany {
   company_description: string;
   selectedstudents: selectedStudents[];
 }
+
 // ----------------------------------- subscribedCompany Interface
 
 // ----------------------------------- cancelledCompany Interface
+
 export interface cancelledCompany {
   company_id: string;
   username: string;
@@ -51,9 +60,11 @@ export interface cancelledCompany {
   company_name: string;
   company_description: string;
 }
+
 // ----------------------------------- cancelledCompany Interface
 
 // -------------------------------------------- Students Interface
+
 export interface Students {
   name: string;
   email_id: string;
@@ -72,29 +83,34 @@ export interface Students {
   twelve_percentage: number;
   diploma_percentage: number;
 }
+
 // -------------------------------------------- Students Interface
 
 // ----------------------------------------- Department Interface
+
 export interface Department {
   department_name: string;
   year_batch: number;
   student_details: Students[];
 }
+
 // ----------------------------------------- Department Interface
 
 // -------------------------------------------- Officer Interface
+
 export interface Officer extends Document {
   username: string;
   index: number;
   email_id: string;
   mobile_no: string;
   imageurl: string;
+  college_name: string;
   subscriberequest: subscribeRequest[];
   subscribedcompany: subscribedCompany[];
   cancelledcompany: cancelledCompany[];
-  college_name: string;
   college_details: Department[];
 }
+
 // -------------------------------------------- Officer Interface
 
 // Selected Students by Company Department wise student storing Schema
@@ -127,6 +143,7 @@ export const selectedStudents = new Schema<selectedStudents>({
     type: [selectedStudentsDepartwise],
   },
 });
+
 // Selected Students by Company Schema --------------------------
 
 // ----------------------------------- subscribedCompany Schema
@@ -189,6 +206,7 @@ export const subscribeRequest = new Schema<subscribeRequest>({
 // ----------------------------------- subscribeRequest Schema
 
 // ----------------------------------- cancelledCompany Schema
+
 export const cancelledCompany = new Schema<cancelledCompany>({
   company_id: {
     type: String,
@@ -212,9 +230,11 @@ export const cancelledCompany = new Schema<cancelledCompany>({
     type: String,
   },
 });
+
 // ----------------------------------- cancelledCompany Schema
 
 // --------------------------------------------- Student Schema
+
 export const StudentsSchema = new Schema<Students>({
   name: {
     type: String,
@@ -271,9 +291,11 @@ export const StudentsSchema = new Schema<Students>({
     type: Number,
   },
 });
+
 // ----------------------------------------------- Student Schema
 
 // --------------------------------------------- Department Schema
+
 export const DepartmentSchema = new Schema<Department>({
   department_name: {
     type: String,
@@ -285,9 +307,11 @@ export const DepartmentSchema = new Schema<Department>({
     type: [StudentsSchema],
   },
 });
+
 // -------------------------------------------- Department Schema
 
 // ----------------------------------------------- Officer Schema
+
 const OfficerSchema = new Schema<Officer>({
   username: {
     type: String,
@@ -324,6 +348,7 @@ const OfficerSchema = new Schema<Officer>({
     type: [DepartmentSchema],
   },
 });
+
 // ----------------------------------------------- Officer Schema
 
 const OfficerModel = model<Officer>("Officer", OfficerSchema);
