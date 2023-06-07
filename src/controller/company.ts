@@ -14,11 +14,16 @@ export const createCompanyController = async (
 ): Promise<any> => {
   try {
     const company = await createCompany({
-      name: req.body.name,
-      imageURL: req.body.imageURL,
+      username: req.body.username,
+      imageurl: req.body.imageurl,
       email_id: req.body.email_id,
-      companydescription: req.body.companydescription,
-      detailsOfficer: [],
+      mobile_no: req.body.mobile_no,
+      company_name: req.body.company_name,
+      company_description: req.body.company_description,
+      subscribe_request: [],
+      subscribed_officer: [],
+      cancelled_officer: [],
+      selected_students: [],
     });
     return res.status(200).json({
       message: "This is Company's Create Page",
@@ -54,46 +59,6 @@ export const deleteCompanyController = async (
     let data = await deleteCompany(filter);
     return res.status(200).json({
       message: "This is Company's Delete Page",
-      data: data,
-    });
-  } catch (e) {
-    res.status(500).json({ message: "Server Error" });
-  }
-};
-
-export const addOfficerDetailsController = async (
-  req: Request,
-  res: Response
-): Promise<any> => {
-  try {
-    const filter = { _id: req.params.id };
-    let data = await findAndUpdate(
-      filter,
-      { $push: { detailsOfficer: req.body.detailsOfficer } },
-      { new: true }
-    );
-    return res.status(200).json({
-      message: "This is Company's department access details page",
-      data: data,
-    });
-  } catch (e) {
-    res.status(500).json({ message: "Server Error" });
-  }
-};
-export const removeOfficerDetailsController = async (
-  req: Request,
-  res: Response
-): Promise<any> => {
-  try {
-    const filter = { _id: req.params.id };
-    const detailsOfficerId = req.body._id;
-    let data = await findAndUpdate(
-      filter,
-      { $pull: { detailsOfficer: { _id: detailsOfficerId } } },
-      { new: true }
-    );
-    return res.status(200).json({
-      message: "This is Company's department remove details page",
       data: data,
     });
   } catch (e) {

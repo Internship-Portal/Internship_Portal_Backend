@@ -1,16 +1,57 @@
 import { Schema, model, Document, Types } from "mongoose";
 
+// Selected Students by Company Department wise student storing--
+export interface selectedStudentsDepartwise {
+  student_id: string;
+  index: number;
+}
+// Selected Students by Company Department wise student storing--
+
+// Selected Students by Company Interface --------------------------
+export interface selectedStudents {
+  department_name: string;
+  year_batch: string;
+  date: Date;
+  selectedstudents: selectedStudentsDepartwise[];
+}
+// Selected Students by Company Interface --------------------------
+
 // ----------------------------------- subscribeRequest Interface
 export interface subscribeRequest {
   company_id: string;
+  username: string;
+  imageurl: string;
+  mobile_no: string;
+  email_id: string;
+  company_name: string;
+  company_description: string;
 }
 // ----------------------------------- subscribeRequest Interface
 
 // ----------------------------------- subscribedCompany Interface
 export interface subscribedCompany {
   company_id: string;
+  username: string;
+  imageurl: string;
+  mobile_no: string;
+  email_id: string;
+  company_name: string;
+  company_description: string;
+  selectedstudents: selectedStudents[];
 }
 // ----------------------------------- subscribedCompany Interface
+
+// ----------------------------------- cancelledCompany Interface
+export interface cancelledCompany {
+  company_id: string;
+  username: string;
+  imageurl: string;
+  mobile_no: string;
+  email_id: string;
+  company_name: string;
+  company_description: string;
+}
+// ----------------------------------- cancelledCompany Interface
 
 // -------------------------------------------- Students Interface
 export interface Students {
@@ -35,7 +76,7 @@ export interface Students {
 
 // ----------------------------------------- Department Interface
 export interface Department {
-  department: string;
+  department_name: string;
   year_batch: number;
   student_details: Students[];
 }
@@ -43,23 +84,80 @@ export interface Department {
 
 // -------------------------------------------- Officer Interface
 export interface Officer extends Document {
-  name: string;
+  username: string;
+  index: number;
   email_id: string;
   mobile_no: string;
   imageurl: string;
   subscriberequest: subscribeRequest[];
   subscribedcompany: subscribedCompany[];
+  cancelledcompany: cancelledCompany[];
   college_name: string;
   college_details: Department[];
 }
 // -------------------------------------------- Officer Interface
 
+// Selected Students by Company Department wise student storing Schema
+
+export const selectedStudentsDepartwise =
+  new Schema<selectedStudentsDepartwise>({
+    student_id: {
+      type: String,
+    },
+    index: {
+      type: Number,
+    },
+  });
+
+// Selected Students by Company Department wise student storing Schema
+
+// Selected Students by Company Schema --------------------------
+
+export const selectedStudents = new Schema<selectedStudents>({
+  department_name: {
+    type: String,
+  },
+  year_batch: {
+    type: String,
+  },
+  date: {
+    type: Date,
+  },
+  selectedstudents: {
+    type: [selectedStudentsDepartwise],
+  },
+});
+// Selected Students by Company Schema --------------------------
+
 // ----------------------------------- subscribedCompany Schema
+
 export const subscribedCompany = new Schema<subscribedCompany>({
   company_id: {
     type: String,
   },
+  username: {
+    type: String,
+  },
+  imageurl: {
+    type: String,
+  },
+  mobile_no: {
+    type: String,
+  },
+  email_id: {
+    type: String,
+  },
+  company_name: {
+    type: String,
+  },
+  company_description: {
+    type: String,
+  },
+  selectedstudents: {
+    type: [selectedStudents],
+  },
 });
+
 // ----------------------------------- subscribedCompany Schema
 
 // ----------------------------------- subscribeRequest Schema
@@ -68,8 +166,53 @@ export const subscribeRequest = new Schema<subscribeRequest>({
   company_id: {
     type: String,
   },
+  username: {
+    type: String,
+  },
+  imageurl: {
+    type: String,
+  },
+  mobile_no: {
+    type: String,
+  },
+  email_id: {
+    type: String,
+  },
+  company_name: {
+    type: String,
+  },
+  company_description: {
+    type: String,
+  },
 });
+
 // ----------------------------------- subscribeRequest Schema
+
+// ----------------------------------- cancelledCompany Schema
+export const cancelledCompany = new Schema<cancelledCompany>({
+  company_id: {
+    type: String,
+  },
+  username: {
+    type: String,
+  },
+  imageurl: {
+    type: String,
+  },
+  mobile_no: {
+    type: String,
+  },
+  email_id: {
+    type: String,
+  },
+  company_name: {
+    type: String,
+  },
+  company_description: {
+    type: String,
+  },
+});
+// ----------------------------------- cancelledCompany Schema
 
 // --------------------------------------------- Student Schema
 export const StudentsSchema = new Schema<Students>({
@@ -132,7 +275,7 @@ export const StudentsSchema = new Schema<Students>({
 
 // --------------------------------------------- Department Schema
 export const DepartmentSchema = new Schema<Department>({
-  department: {
+  department_name: {
     type: String,
   },
   year_batch: {
@@ -146,9 +289,12 @@ export const DepartmentSchema = new Schema<Department>({
 
 // ----------------------------------------------- Officer Schema
 const OfficerSchema = new Schema<Officer>({
-  name: {
+  username: {
     type: String,
     required: true,
+  },
+  index: {
+    type: Number,
   },
   imageurl: {
     type: String,
@@ -170,6 +316,9 @@ const OfficerSchema = new Schema<Officer>({
   },
   subscribedcompany: {
     type: [subscribedCompany],
+  },
+  cancelledcompany: {
+    type: [cancelledCompany],
   },
   college_details: {
     type: [DepartmentSchema],
