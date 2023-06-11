@@ -1,12 +1,16 @@
 import express, { Request, Response } from "express";
 import cors from "cors";
+import Mongoose from "mongoose";
+require("dotenv").config();
+
 const app = express();
-const PORT: number = 4000;
+const PORT = process.env.PORT || 4000;
 app.use(cors());
+app.use(express.json());
 
 // Officer Routes Connection
-import router from "./routes/officer";
-app.use("/api/officer", router);
+import OfficerRouter from "./routes/officer";
+app.use("/api/officer", OfficerRouter);
 
 // Company Routes Connection
 import CompanyRouter from "./routes/Company";

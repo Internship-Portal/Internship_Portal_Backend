@@ -1,4 +1,6 @@
 import { Schema, model, Document, Types } from "mongoose";
+import { Buffer } from "node:buffer";
+import validator from "validator";
 
 // Selected Students by Company Department wise student storing--
 
@@ -66,19 +68,23 @@ export interface cancelledCompany {
 // -------------------------------------------- Students Interface
 
 export interface Students {
+  index: number;
   name: string;
   email_id: string;
   college_name: string;
   location: string;
-  mobile_no: number;
+  mobile_no: string;
   branch: string;
   roll_no: string;
   achievements: [string];
   skills: [string];
   hobbies: [string];
   cgpa: number;
-  unavailable_dates: [Date];
-  internship_status: boolean;
+  backlog: boolean;
+  year_batch: number;
+  internship_start_date: Date | null;
+  internship_end_date: Date | null;
+  Internship_status: boolean;
   tenth_percentage: number;
   twelve_percentage: number;
   diploma_percentage: number;
@@ -100,14 +106,14 @@ export interface Department {
 
 export interface Officer extends Document {
   username: string;
-  index: number;
   email_id: string;
   mobile_no: string;
-  imageurl: string;
+  image: string;
   college_name: string;
-  subscriberequest: subscribeRequest[];
-  subscribedcompany: subscribedCompany[];
-  cancelledcompany: cancelledCompany[];
+  subscribe_request_from_company: subscribeRequest[];
+  subscribe_request_to_company: subscribeRequest[];
+  subscribed_company: subscribedCompany[];
+  cancelled_company: cancelledCompany[];
   college_details: Department[];
 }
 
@@ -177,9 +183,9 @@ export const subscribedCompany = new Schema<subscribedCompany>({
 
 // ----------------------------------- subscribedCompany Schema
 
-// ----------------------------------- subscribeRequest Schema
+// ----------------------------------- subscribeRequestFromCompany Schema
 
-export const subscribeRequest = new Schema<subscribeRequest>({
+export const subscribeRequestFromCompany = new Schema<subscribeRequest>({
   company_id: {
     type: String,
   },
@@ -203,7 +209,35 @@ export const subscribeRequest = new Schema<subscribeRequest>({
   },
 });
 
-// ----------------------------------- subscribeRequest Schema
+// ----------------------------------- subscribeRequestFromCompany Schema
+
+// ----------------------------------- subscribeRequestFromCompany Schema
+
+export const subscribeRequesttoCompany = new Schema<subscribeRequest>({
+  company_id: {
+    type: String,
+  },
+  username: {
+    type: String,
+  },
+  imageurl: {
+    type: String,
+  },
+  mobile_no: {
+    type: String,
+  },
+  email_id: {
+    type: String,
+  },
+  company_name: {
+    type: String,
+  },
+  company_description: {
+    type: String,
+  },
+});
+
+// ----------------------------------- subscribeRequestFromCompany Schema
 
 // ----------------------------------- cancelledCompany Schema
 
@@ -236,6 +270,9 @@ export const cancelledCompany = new Schema<cancelledCompany>({
 // --------------------------------------------- Student Schema
 
 export const StudentsSchema = new Schema<Students>({
+  index: {
+    type: Number,
+  },
   name: {
     type: String,
     required: true,
@@ -252,7 +289,7 @@ export const StudentsSchema = new Schema<Students>({
     type: String,
   },
   mobile_no: {
-    type: Number,
+    type: String,
     required: true,
   },
   branch: {
@@ -275,11 +312,19 @@ export const StudentsSchema = new Schema<Students>({
   cgpa: {
     type: Number,
   },
-  unavailable_dates: {
-    type: [Date],
+  year_batch: {
+    type: Number,
   },
-  internship_status: {
+  backlog: {
     type: Boolean,
+  },
+  internship_start_date: {
+    type: Date,
+    default: null,
+  },
+  internship_end_date: {
+    type: Date,
+    default: null,
   },
   tenth_percentage: {
     type: Number,
@@ -290,6 +335,27 @@ export const StudentsSchema = new Schema<Students>({
   diploma_percentage: {
     type: Number,
   },
+  Internship_status: {
+    type: Boolean,
+  },
+});
+
+StudentsSchema.path("Internship_status").set(function (
+  this: Students,
+  value: boolean
+) {
+  if (this.internship_start_date && this.internship_end_date) {
+    const currentDate = new Date();
+    this.Internship_status =
+      currentDate >= this.internship_start_date &&
+      currentDate <= this.internship_end_date;
+    if (this.Internship_status === false) {
+      this.internship_start_date = null;
+      this.internship_end_date = null;
+    }
+  } else {
+    this.Internship_status = false;
+  }
 });
 
 // ----------------------------------------------- Student Schema
@@ -299,9 +365,19 @@ export const StudentsSchema = new Schema<Students>({
 export const DepartmentSchema = new Schema<Department>({
   department_name: {
     type: String,
+    minlength: [2, "minimum 2 letters required"],
+    required: true,
   },
   year_batch: {
     type: Number,
+    validate: {
+      validator: function (value: number): void {
+        if (value.toString().length != 4) {
+          throw new Error("The number should be of 4 digits long.");
+        }
+      },
+    },
+    required: true,
   },
   student_details: {
     type: [StudentsSchema],
@@ -315,33 +391,42 @@ export const DepartmentSchema = new Schema<Department>({
 const OfficerSchema = new Schema<Officer>({
   username: {
     type: String,
-    required: true,
+    required: [true, "username is required"],
+    minlength: [3, "minimum 3 letters required"],
   },
-  index: {
-    type: Number,
-  },
-  imageurl: {
+
+  image: {
     type: String,
   },
   mobile_no: {
     type: String,
     required: true,
+    minlength: [4, "minimum 4 number required"],
   },
   email_id: {
     type: String,
+    validate(value: string): void {
+      if (!validator.isEmail(value)) {
+        throw new Error("email is invalid");
+      }
+    },
     required: true,
   },
   college_name: {
     type: String,
     required: true,
+    minlength: [3, "minimum 3 letters required"],
   },
-  subscriberequest: {
-    type: [subscribeRequest],
+  subscribe_request_from_company: {
+    type: [subscribeRequestFromCompany],
   },
-  subscribedcompany: {
+  subscribe_request_to_company: {
+    type: [subscribeRequesttoCompany],
+  },
+  subscribed_company: {
     type: [subscribedCompany],
   },
-  cancelledcompany: {
+  cancelled_company: {
     type: [cancelledCompany],
   },
   college_details: {

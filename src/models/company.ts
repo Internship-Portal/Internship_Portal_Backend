@@ -5,7 +5,8 @@ import { Students, selectedStudentsDepartwise } from "./officer";
 export interface departments {
   department_name: string;
   year_batch: number;
-  date: Date;
+  internship_start_date: Date;
+  internship_end_date: Date;
   students_details: [Students];
 }
 // --------------- selected students department of Officer Interface
@@ -47,7 +48,8 @@ export interface Company extends Document {
   mobile_no: string;
   company_name: string;
   company_description: string;
-  subscribe_request: subscribeRequest[];
+  subscribe_request_from_officer: subscribeRequest[];
+  subscribe_request_to_officer: subscribeRequest[];
   subscribed_officer: subscribedOfficer[];
   cancelled_officer: cancelledOfficer[];
   selected_students: selectedStudents[];
@@ -63,7 +65,10 @@ const departmentDetails = new Schema<departments>({
   year_batch: {
     type: Number,
   },
-  date: {
+  internship_start_date: {
+    type: Date,
+  },
+  internship_end_date: {
     type: Date,
   },
   students_details: [selectedStudentsDepartwise],
@@ -145,7 +150,10 @@ const CompanySchema = new Schema<Company>({
   company_description: {
     type: String,
   },
-  subscribe_request: {
+  subscribe_request_from_officer: {
+    type: [subscribeRequest],
+  },
+  subscribe_request_to_officer: {
     type: [subscribeRequest],
   },
   subscribed_officer: {
