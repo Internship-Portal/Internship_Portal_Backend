@@ -43,7 +43,6 @@ export interface subscribeRequest {
 // ---------------------------------------------- Company Interface
 export interface Company extends Document {
   username: string;
-  imageurl: string;
   email_id: string;
   mobile_no: string;
   company_name: string;
@@ -133,9 +132,6 @@ const subscribeRequest = new Schema<subscribeRequest>({
 
 const CompanySchema = new Schema<Company>({
   username: {
-    type: String,
-  },
-  imageurl: {
     type: String,
   },
   email_id: {

@@ -9,7 +9,10 @@ const connects = async (): Promise<any> => {
     useCreateIndex: true,
     useUnifiedTopology: true,
   };
-  await connect(process.env.DB || "mongodb://0.0.0.0:27017/Internship_Portal")
+  await connect(
+    process.env.DB ||
+      "mongodb+srv://admin:admin@imdb.11npizj.mongodb.net/Internship_Portal"
+  )
     .then(() => {
       // Print Mongo Connected in console if connected
       console.log("Mongo Connected");

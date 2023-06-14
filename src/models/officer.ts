@@ -27,7 +27,6 @@ export interface selectedStudents {
 export interface subscribeRequest {
   company_id: string;
   username: string;
-  imageurl: string;
   mobile_no: string;
   email_id: string;
   company_name: string;
@@ -41,7 +40,6 @@ export interface subscribeRequest {
 export interface subscribedCompany {
   company_id: string;
   username: string;
-  imageurl: string;
   mobile_no: string;
   email_id: string;
   company_name: string;
@@ -56,7 +54,6 @@ export interface subscribedCompany {
 export interface cancelledCompany {
   company_id: string;
   username: string;
-  imageurl: string;
   mobile_no: string;
   email_id: string;
   company_name: string;
@@ -82,6 +79,10 @@ export interface Students {
   cgpa: number;
   backlog: boolean;
   year_batch: number;
+  linked_profile_link: string;
+  github_profile_link: string;
+  leetcode_profile: string;
+  geeksforgeeks_profile: string;
   internship_start_date: Date | null;
   internship_end_date: Date | null;
   Internship_status: boolean;
@@ -108,8 +109,8 @@ export interface Officer extends Document {
   username: string;
   email_id: string;
   mobile_no: string;
-  image: string;
   college_name: string;
+  password: string;
   subscribe_request_from_company: subscribeRequest[];
   subscribe_request_to_company: subscribeRequest[];
   subscribed_company: subscribedCompany[];
@@ -161,9 +162,6 @@ export const subscribedCompany = new Schema<subscribedCompany>({
   username: {
     type: String,
   },
-  imageurl: {
-    type: String,
-  },
   mobile_no: {
     type: String,
   },
@@ -192,9 +190,6 @@ export const subscribeRequestFromCompany = new Schema<subscribeRequest>({
   username: {
     type: String,
   },
-  imageurl: {
-    type: String,
-  },
   mobile_no: {
     type: String,
   },
@@ -218,9 +213,6 @@ export const subscribeRequesttoCompany = new Schema<subscribeRequest>({
     type: String,
   },
   username: {
-    type: String,
-  },
-  imageurl: {
     type: String,
   },
   mobile_no: {
@@ -248,9 +240,6 @@ export const cancelledCompany = new Schema<cancelledCompany>({
   username: {
     type: String,
   },
-  imageurl: {
-    type: String,
-  },
   mobile_no: {
     type: String,
   },
@@ -275,30 +264,24 @@ export const StudentsSchema = new Schema<Students>({
   },
   name: {
     type: String,
-    required: true,
   },
   email_id: {
     type: String,
-    required: true,
   },
   college_name: {
     type: String,
-    required: true,
   },
   location: {
     type: String,
   },
   mobile_no: {
     type: String,
-    required: true,
   },
   branch: {
     type: String,
-    required: true,
   },
   roll_no: {
     type: String,
-    required: true,
   },
   achievements: {
     type: [String],
@@ -311,12 +294,32 @@ export const StudentsSchema = new Schema<Students>({
   },
   cgpa: {
     type: Number,
+    validate: {
+      validator: function (value: any) {
+        const pattern = /^[0-9](\.[0-9]{1,2})?$/;
+        return pattern.test(value);
+      },
+      message: (props) =>
+        `${props.value} is not a valid CGPA. CGPA should have one digit before the decimal point and at most two digits after the decimal point.`,
+    },
   },
   year_batch: {
     type: Number,
   },
   backlog: {
     type: Boolean,
+  },
+  linked_profile_link: {
+    type: String,
+  },
+  github_profile_link: {
+    type: String,
+  },
+  leetcode_profile: {
+    type: String,
+  },
+  geeksforgeeks_profile: {
+    type: String,
   },
   internship_start_date: {
     type: Date,
@@ -344,7 +347,10 @@ StudentsSchema.path("Internship_status").set(function (
   this: Students,
   value: boolean
 ) {
-  if (this.internship_start_date && this.internship_end_date) {
+  if (
+    this.internship_start_date !== null &&
+    this.internship_end_date !== null
+  ) {
     const currentDate = new Date();
     this.Internship_status =
       currentDate >= this.internship_start_date &&
@@ -394,10 +400,6 @@ const OfficerSchema = new Schema<Officer>({
     required: [true, "username is required"],
     minlength: [3, "minimum 3 letters required"],
   },
-
-  image: {
-    type: String,
-  },
   mobile_no: {
     type: String,
     required: true,
@@ -411,6 +413,11 @@ const OfficerSchema = new Schema<Officer>({
       }
     },
     required: true,
+  },
+  password: {
+    type: String,
+    required: true,
+    minlength: [8, "minimum 8 number required"],
   },
   college_name: {
     type: String,

@@ -1,7 +1,35 @@
-import { Request, Response } from "express";
+import { NextFunction, Request, Response } from "express";
 import OfficerModel, { Officer, Students, Department } from "../models/officer";
+import multer from "multer";
 import csvtojson from "csvtojson";
-import fs = require("fs");
+import { promisify } from "util";
+import fs from "fs";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+const SecretKey = "Bhootni";
+
+// Delete the upload folder that is created to upload a CSV
+const deleteFolder = (folderPath: string) => {
+  if (fs.existsSync(folderPath)) {
+    fs.readdirSync(folderPath).forEach((file) => {
+      const filePath = `${folderPath}/${file}`;
+      if (fs.lstatSync(filePath).isDirectory()) {
+        deleteFolder(filePath); // Recursively delete sub-folders and files
+      } else {
+        fs.unlinkSync(filePath); // Delete individual file
+      }
+    });
+  }
+};
+
+// Usage
+deleteFolder("uploads");
+
+// Set up multer storage
+const storage = multer({ dest: "uploads/" });
+
+// Set up multer upload middleware
+const upload = storage.single("csvFile");
 
 import {
   createOfficer,
@@ -9,30 +37,124 @@ import {
   deleteOfficer,
   findAndUpdate,
 } from "../services/officer.service";
-import { error } from "console";
+
+// login Officer in the Backend Controller
+export const loginOfficerController = (req: Request, res: Response) => {
+  try {
+    let { email_id, password } = req.body;
+    email_id = email_id.trim();
+    password = password.trim();
+
+    if (!email_id || !password) {
+      return res.status(400).json({ message: "username and Password Error" });
+    } else {
+      OfficerModel.find({ email_id: email_id }).then((data) => {
+        let foundOfficer = data[0];
+        if (data) {
+          const hashedPassword = foundOfficer.password;
+          bcrypt.compare(password, hashedPassword).then((results) => {
+            if (results) {
+              const token = jwt.sign({ foundOfficer }, SecretKey);
+              return res.status(200).send({
+                message: "Login Successful",
+                data: foundOfficer,
+                token: token,
+              });
+            } else {
+              return res.status(404).json({ message: "Wrong Password Error" });
+            }
+          });
+        } else {
+          return res.status(404).json({ message: "Server Error" });
+        }
+      });
+    }
+  } catch (e) {
+    return res.status(500).json({ message: "Server Error" });
+  }
+};
+
+// verify Officer by Token got from frontend
+export const verifyOfficerByToken = async (req: Request, res: Response) => {
+  try {
+    const tokenVerify = jwt.verify(req.body.token, SecretKey);
+    if (tokenVerify) {
+      return res.status(200).send({
+        message: "Login by token Successful",
+        data: tokenVerify,
+      });
+    } else {
+      res.status(400).json({ message: "Cannot verify token" });
+    }
+  } catch (e) {
+    return res.status(500).json({ message: "Problem in verifying the token" });
+  }
+};
+
+//verify Token function
+export const verifyToken = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const bearerHeader = req.headers["authentication"];
+  if (typeof bearerHeader !== "undefined") {
+    const bearer: string = bearerHeader as string;
+    const token = bearer.split(" ")[1];
+    req.body.token = token;
+    next();
+  } else {
+    return res.status(400).json({ message: "Invalid Token" });
+  }
+};
 
 // Create Officer in the Backend Controller
-export const createOfficerController = async (
-  req: Request,
-  res: Response
-): Promise<Response<any, Record<string, any>>> => {
+export const createOfficerController = async (req: Request, res: Response) => {
   try {
-    const user = await createOfficer({
-      username: req.body.username,
-      image: req.body.image,
-      email_id: req.body.email_id,
-      mobile_no: req.body.mobile_no,
-      college_name: req.body.college_name,
-      subscribed_company: [],
-      cancelled_company: [],
-      subscribe_request_from_company: [],
-      subscribe_request_to_company: [],
-      college_details: [],
-    });
-    return res.status(200).json({
-      message: "This is Officer Create Page",
-      data: user,
-    });
+    let { username, email_id, mobile_no, password, college_name } = req.body;
+    email_id = email_id.trim();
+    password = password.trim();
+    if (!username || !email_id || !mobile_no || !password || !college_name) {
+      return res.status(400).json({ message: "Server Error" });
+    } else if (!/^[a-z A-Z]*$/.test(req.body.username)) {
+      return res.status(400).json({ message: "username Error" });
+    } else if (req.body.password < 8) {
+      return res.status(400).json({ message: "password Error" });
+    } else {
+      const officer = await OfficerModel.find({ email_id });
+      if (officer.length !== 0) {
+        return res.status(400).json({ message: "user Exists", data: officer });
+      }
+    }
+
+    // Password Hashing using bcrypt
+    const saltRounds = 10;
+    bcrypt
+      .hash(password, saltRounds)
+      .then((hashedPassword) => {
+        createOfficer({
+          username: username,
+          email_id: email_id,
+          password: hashedPassword,
+          mobile_no: mobile_no,
+          college_name: college_name,
+          subscribed_company: [],
+          cancelled_company: [],
+          subscribe_request_from_company: [],
+          subscribe_request_to_company: [],
+          college_details: [],
+        }).then((user) => {
+          return res.status(200).json({
+            message: "This is Officer Create Page",
+            data: user,
+          });
+        });
+      })
+      .catch((e) => {
+        return res
+          .status(500)
+          .json({ message: "error while hashing the password" });
+      });
   } catch (e) {
     return res.status(500).json({ message: "Server Error" });
   }
@@ -75,10 +197,14 @@ export const deleteOfficerController = async (
   try {
     const filter = { _id: req.params.id };
     let data = await deleteOfficer(filter);
-    return res.status(200).json({
-      message: "This is Officer Delete Page",
-      data: data,
-    });
+    if (data !== null) {
+      return res.status(200).json({
+        message: "This is Officer Delete Page",
+        data: data,
+      });
+    } else {
+      return res.status(400).json({ message: "Cannot find Officer" });
+    }
   } catch (e) {
     return res.status(500).json({ message: "Server Error" });
   }
@@ -91,6 +217,32 @@ export const addDepartmentDetails = async (
 ): Promise<Response<any, Record<string, any>>> => {
   try {
     const filter = { _id: req.params.id };
+    const findDepartment = await OfficerModel.findById(filter);
+    if (findDepartment?.college_details.length !== 0) {
+      // Check if findDepartment or college_details is undefined
+      const collegeDetails = findDepartment?.college_details ?? [];
+
+      for (const department of collegeDetails) {
+        if (
+          department.department_name ===
+            req.body.college_details.department_name &&
+          department.year_batch === req.body.college_details.year_batch
+        ) {
+          return res.status(400).json({
+            message: "Department Already exists in Officers details",
+          });
+        }
+      }
+    }
+
+    const departmentName = req.body.department_name;
+    const yearBatch = req.body.year_batch;
+    req.body.college_details.student_details.map((e: Students, i: number) => {
+      e.index = i + 1;
+      e.branch = departmentName;
+      e.year_batch = yearBatch;
+    });
+
     let data = await findAndUpdate(
       filter,
       { $push: { college_details: req.body.college_details } },
@@ -112,16 +264,20 @@ export const removeDepartmentDetails = async (
 ): Promise<Response<any, Record<string, any>>> => {
   try {
     const filter = { _id: req.params.id };
-    const departmentDetailsId = req.body._id;
+    const departmentDetailsId = req.body.department_id;
     let data = await findAndUpdate(
       filter,
       { $pull: { college_details: { _id: departmentDetailsId } } },
       { new: true }
     );
-    return res.status(200).json({
-      message: "This is Officer removeDepartmentDetails page",
-      data: data,
-    });
+    if (data !== null) {
+      return res.status(200).json({
+        message: "This is Officer Delete Page",
+        data: data,
+      });
+    } else {
+      return res.status(400).json({ message: "Cannot find Officer" });
+    }
   } catch (e) {
     return res.status(500).json({ message: "Server Error" });
   }
@@ -137,34 +293,36 @@ export const addOneStudentDetails = async (req: Request, res: Response) => {
     if (!officer) {
       return res.status(404).json({ error: "Officer not found" });
     }
-
     let departmentFound = false;
-    // Push the new student details to the college_details array
-    officer.college_details.map((e) => {
-      if (e.department_name === newStudentDetails.branch) {
+    let studentExists = false; // Flag to check if student already exists
+
+    for (const department of officer.college_details) {
+      if (department.department_name === newStudentDetails.branch) {
         departmentFound = true;
-        // Add the index value to the newStudentDetails
-        if (e.student_details.length > 0) {
-          newStudentDetails = {
-            ...newStudentDetails,
-            index: e.student_details[e.student_details.length - 1].index + 1,
-          };
-          e.student_details.push(newStudentDetails);
-        } else {
-          newStudentDetails = {
-            ...newStudentDetails,
-            index: 1,
-          };
-          e.student_details.push(newStudentDetails);
+        for (const student of department.student_details) {
+          if (student.roll_no === newStudentDetails.roll_no) {
+            studentExists = true;
+            break; // Exit the loop once student is found
+          }
         }
+        if (studentExists) {
+          break; // Exit the loop once student is found
+        }
+        newStudentDetails = {
+          ...newStudentDetails,
+          index:
+            department.student_details[department.student_details.length - 1]
+              .index + 1,
+        };
+        department.student_details.push(newStudentDetails);
       }
-    });
+    }
 
     if (!departmentFound) {
       newStudentDetails = { ...newStudentDetails, index: 1 };
       const newDepartment: Department = {
         department_name: newStudentDetails.branch,
-        year_batch: newStudentDetails.year_batch, // Set the desired value for year_batch
+        year_batch: newStudentDetails.year_batch,
         student_details: [newStudentDetails],
       };
       officer.college_details.push(newDepartment);
@@ -173,13 +331,19 @@ export const addOneStudentDetails = async (req: Request, res: Response) => {
     // Save the updated officer document
     await officer.save();
 
-    return res.json({
-      message: "One Student details added successfully",
-      data: officer,
-    });
+    if (studentExists) {
+      return res.status(400).json({
+        message: "student details Already exists",
+      });
+    } else {
+      return res.status(200).json({
+        message: "One Student details added successfully",
+        data: officer,
+      });
+    }
   } catch (err) {
     return res.status(500).json({
-      message: "An Error Occured while adding the student details",
+      message: "An Error Occurred while adding the student details",
       error: err,
     });
   }
@@ -190,8 +354,7 @@ export const deleteOneStudentDetails = async (req: Request, res: Response) => {
   try {
     const officerId: string = req.params.id;
     const departmentName: string = req.body.branch;
-    const studentIndex: number = parseInt(req.body.index);
-
+    const departmentYearBatch: number = req.body.year_batch;
     const officer: Officer | null = await OfficerModel.findById(officerId);
 
     if (!officer) {
@@ -201,9 +364,11 @@ export const deleteOneStudentDetails = async (req: Request, res: Response) => {
     let departmentFound = false;
     let departmentIndex = -1;
 
-    // Find the department by name
     officer.college_details.forEach((department, index) => {
-      if (department.department_name === departmentName) {
+      if (
+        department.department_name === departmentName &&
+        department.year_batch === departmentYearBatch
+      ) {
         departmentFound = true;
         departmentIndex = index;
       }
@@ -215,17 +380,34 @@ export const deleteOneStudentDetails = async (req: Request, res: Response) => {
 
     const department = officer.college_details[departmentIndex];
 
-    // Find the student by index
-    const studentIndexToDelete = department.student_details.findIndex(
-      (student) => student.index === studentIndex
-    );
+    if (req.body.index) {
+      const studentIndex: number = parseInt(req.body.index); // Find the department by name
 
-    if (studentIndexToDelete === -1) {
-      return res.status(404).json({ error: "Student not found" });
+      // Find the student by index
+      const studentIndexToDelete = department.student_details.findIndex(
+        (student) => student.index === studentIndex
+      );
+
+      if (studentIndexToDelete === -1) {
+        return res.status(404).json({ error: "Student not found" });
+      }
+
+      // Remove the student from the department
+      department.student_details.splice(studentIndexToDelete, 1);
+    } else {
+      const studentId: string = req.body.roll_no; // Find the department by name
+
+      const studentIndexToDelete = department.student_details.findIndex(
+        (student) => student.roll_no === studentId
+      );
+
+      if (studentIndexToDelete === -1) {
+        return res.status(404).json({ error: "Student not found" });
+      }
+
+      // Remove the student from the department
+      department.student_details.splice(studentIndexToDelete, 1);
     }
-
-    // Remove the student from the department
-    department.student_details.splice(studentIndexToDelete, 1);
 
     // Save the updated officer document
     await officer.save();
@@ -242,18 +424,74 @@ export const deleteOneStudentDetails = async (req: Request, res: Response) => {
   }
 };
 
-// Access the Local CSV file and convert it to the JSON format
+// Access the CSV file provided by frontend and convert it to the JSON format
 
-export const convertCSVtoJSON = (req: Request, res: Response) => {
-  let csvFilePath;
-  if (req.file) csvFilePath = req.file.path;
-  if (csvFilePath) {
-    csvtojson()
-      .fromFile(csvFilePath)
-      .then((json) => {
-        console.log(json);
-        return res.status(200).json({ data: json });
+export const convertStudentsCSVtoJSON = async (req: Request, res: Response) => {
+  try {
+    const officerId: string = req.params.id;
+    const officer: Officer | null = await OfficerModel.findById(officerId);
+    // Checking for the officer details in database
+    if (!officer) {
+      return res.status(404).json({ error: "Officer not found" });
+    }
+    // converting the csv file to JSON
+    let newStudentDetails: Students[];
+
+    // "promisify" function from the util module to convert the upload function into a promise
+    const uploadPromise = promisify(upload);
+
+    // await the completion of the upload operation using the uploadPromise variable.
+    await uploadPromise(req, res);
+
+    // if file does not exist
+    if (!req.file) {
+      return res.status(404).json({ error: "No file uploaded" });
+    }
+
+    // Check if the file exists and convert to json format.
+    const csvFilePath = req.file.path;
+    if (!csvFilePath) {
+      return res.status(500).json({
+        message: "CSV file uploaded not found",
       });
+    }
+    newStudentDetails = await csvtojson().fromFile(csvFilePath);
+
+    // Delete the file that was stored by multer in our dir.
+    deleteFolder(req.file.destination);
+
+    // Check if data from csv file is set in newStudentDetails variable.
+    if (!newStudentDetails) {
+      return res.status(500).json({
+        message: "CSV file cannot be converted not found",
+      });
+    }
+
+    newStudentDetails.map((e, i) => {
+      e.index = i + 1;
+    });
+
+    const newDepartment: Department = {
+      department_name: req.body.department_name,
+      year_batch: req.body.year_batch,
+      student_details: newStudentDetails,
+    };
+
+    // push the new Department created
+    officer.college_details.push(newDepartment);
+
+    // Save the updated officer document
+    await officer.save();
+
+    return res.status(200).json({
+      message: "CSV details added successfully",
+      data: officer,
+    });
+  } catch (e) {
+    return res.status(500).json({
+      message:
+        "An Error Occurred while Adding the student details with CSV file",
+      error: e,
+    });
   }
-  return res.status(200);
 };

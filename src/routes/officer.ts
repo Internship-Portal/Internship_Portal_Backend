@@ -1,5 +1,4 @@
-import express, { Request, Response, Router } from "express";
-import multer from "multer";
+import express, { NextFunction, Request, Response, Router } from "express";
 const router: Router = Router();
 
 import BodyParser from "body-parser";
@@ -12,14 +11,23 @@ import {
   removeDepartmentDetails,
   addOneStudentDetails,
   deleteOneStudentDetails,
-  convertCSVtoJSON,
+  convertStudentsCSVtoJSON,
+  loginOfficerController,
+  verifyToken,
+  verifyOfficerByToken,
 } from "../controller/officer";
 
 router.use(BodyParser.json());
 router.use(BodyParser.urlencoded({ extended: true }));
-const upload = multer({ dest: "uploads/" });
+// const upload = multer({ dest: "uploads/" });
 
 // Routes connected to the controllers officers function
+
+// Login Officer Route
+router.post("/loginOfficer", loginOfficerController);
+
+// verify the token from frontend ROute
+router.post("/verifyOfficerToken", verifyToken, verifyOfficerByToken);
 
 // Create Officer Route
 router.post("/createOfficer", createOfficerController);
@@ -46,6 +54,6 @@ router.put("/addOneStudentDetails/:id", addOneStudentDetails);
 router.put("/deleteOneStudentDetails/:id", deleteOneStudentDetails);
 
 // Route to convert CSV To JSON
-router.post("/uploads", upload.single("csvFile"), convertCSVtoJSON);
+router.post("/uploadCSVOfStudents/:id", convertStudentsCSVtoJSON);
 
 export default router;

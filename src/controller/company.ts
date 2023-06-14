@@ -16,7 +16,6 @@ export const createCompanyController = async (
   try {
     const company = await createCompany({
       username: req.body.username,
-      imageurl: req.body.imageurl,
       email_id: req.body.email_id,
       mobile_no: req.body.mobile_no,
       company_name: req.body.company_name,
