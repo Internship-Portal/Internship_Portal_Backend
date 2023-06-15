@@ -12,7 +12,7 @@ import {
   findAndUpdate,
 } from "../services/company.service";
 
-// login Officer in the Backend Controller
+// login Company in the Backend Controller
 export const loginCompanyController = (req: Request, res: Response) => {
   try {
     if (!req.body.email_id) {
@@ -102,7 +102,7 @@ export const createCompanyController = async (
       if (officer.length !== 0) {
         return res.status(400).json({ message: "Company already Exists" });
       } else {
-        // password hasing using bcrypt
+        // password hashing using bcrypt
         const saltRounds = 10;
         bcrypt.hash(password, saltRounds).then((hashedPassword) => {
           createCompany({
