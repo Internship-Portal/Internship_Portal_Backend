@@ -39,7 +39,7 @@ import {
 } from "../services/officer.service";
 
 // login Officer in the Backend Controller
-export const loginOfficerController = (req: Request, res: Response) => {
+export const loginOfficerController = async (req: Request, res: Response) => {
   try {
     if (!req.body.email_id) {
       return res.status(400).json({ message: "Email not found" });
@@ -49,26 +49,26 @@ export const loginOfficerController = (req: Request, res: Response) => {
       let { email_id, password } = req.body;
       email_id = email_id.trim();
       password = password.trim();
-      OfficerModel.find({ email_id: email_id }).then((data) => {
+
+      const data = await OfficerModel.find({ email_id: email_id });
+      if (data.length !== 0) {
         let foundOfficer = data[0];
-        if (data) {
-          const hashedPassword = foundOfficer.password;
-          bcrypt.compare(password, hashedPassword).then((results) => {
-            if (results) {
-              const token = jwt.sign({ foundOfficer }, SecretKey);
-              return res.status(200).send({
-                message: "Login Successful",
-                data: foundOfficer,
-                token: token,
-              });
-            } else {
-              return res.status(404).json({ message: "Wrong Password Error" });
-            }
-          });
-        } else {
-          return res.status(404).json({ message: "Server Error" });
-        }
-      });
+        const hashedPassword = foundOfficer.password;
+        bcrypt.compare(password, hashedPassword).then((results) => {
+          if (results) {
+            const token = jwt.sign({ foundOfficer }, SecretKey);
+            return res.status(200).send({
+              message: "Login Successful",
+              data: data,
+              token: token,
+            });
+          } else {
+            return res.status(404).json({ message: "Wrong Password Error" });
+          }
+        });
+      } else {
+        return res.status(404).json({ message: "Officer does not exist" });
+      }
     }
   } catch (e) {
     return res.status(500).json({ message: "Server Error" });

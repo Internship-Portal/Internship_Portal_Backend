@@ -13,7 +13,7 @@ import {
 } from "../services/company.service";
 
 // login Company in the Backend Controller
-export const loginCompanyController = (req: Request, res: Response) => {
+export const loginCompanyController = async (req: Request, res: Response) => {
   try {
     if (!req.body.email_id) {
       return res.status(400).json({ message: "Email not found" });
@@ -21,30 +21,25 @@ export const loginCompanyController = (req: Request, res: Response) => {
       return res.status(400).json({ message: "password not found" });
     } else {
       let { email_id, password } = req.body;
-      email_id = email_id.trim();
-      password = password.trim();
-      CompanyModel.find({ email_id: email_id }).then((data) => {
+      const data = await CompanyModel.find({ email_id: email_id });
+      if (data.length !== 0) {
         let foundCompany = data[0];
-        if (data && foundCompany.password) {
-          const hashedPassword = foundCompany.password;
-          bcrypt.compare(password, hashedPassword).then((results) => {
-            if (results) {
-              const token = jwt.sign({ foundCompany }, SecretKey);
-              return res.status(200).send({
-                message: "Login Successful",
-                data: foundCompany,
-                token: token,
-              });
-            } else {
-              return res
-                .status(404)
-                .json({ message: "Wrong Password or Password Error" });
-            }
-          });
-        } else {
-          return res.status(404).json({ message: "Server Error" });
-        }
-      });
+        const hashedPassword = foundCompany.password;
+        bcrypt.compare(password, hashedPassword).then((results) => {
+          if (results) {
+            const token = jwt.sign({ foundCompany }, SecretKey);
+            return res.status(200).send({
+              message: "Login Successful",
+              data: foundCompany,
+              token: token,
+            });
+          } else {
+            return res.status(404).json({ message: "Wrong Password " });
+          }
+        });
+      } else {
+        return res.status(404).json({ message: "Company does not exist" });
+      }
     }
   } catch (e) {
     return res.status(500).json({ message: "Server Error" });
