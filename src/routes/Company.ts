@@ -6,11 +6,16 @@ import {
   findCompanyController,
   deleteCompanyController,
   getAllCompanyController,
+  verifyCompanyByToken,
+  loginCompanyController,
 } from "../controller/company";
 router.use(BodyParser.json());
 router.use(BodyParser.urlencoded({ extended: true }));
 
 // Routes connected to the controllers companies function
+
+// login company route
+router.post("/loginCompany", loginCompanyController);
 
 // Create Company Route
 router.post("/createCompany", createCompanyController);

@@ -6,7 +6,7 @@ import { promisify } from "util";
 import fs from "fs";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-const SecretKey = "Bhootni";
+const SecretKey = "lim4yAey6K78dA8N1yKof4Stp9H4A";
 
 // Delete the upload folder that is created to upload a CSV
 const deleteFolder = (folderPath: string) => {
@@ -41,13 +41,14 @@ import {
 // login Officer in the Backend Controller
 export const loginOfficerController = (req: Request, res: Response) => {
   try {
-    let { email_id, password } = req.body;
-    email_id = email_id.trim();
-    password = password.trim();
-
-    if (!email_id || !password) {
-      return res.status(400).json({ message: "username and Password Error" });
+    if (!req.body.email_id) {
+      return res.status(400).json({ message: "Email not found" });
+    } else if (!req.body.password) {
+      return res.status(400).json({ message: "Password not found" });
     } else {
+      let { email_id, password } = req.body;
+      email_id = email_id.trim();
+      password = password.trim();
       OfficerModel.find({ email_id: email_id }).then((data) => {
         let foundOfficer = data[0];
         if (data) {
@@ -74,23 +75,6 @@ export const loginOfficerController = (req: Request, res: Response) => {
   }
 };
 
-// verify Officer by Token got from frontend
-export const verifyOfficerByToken = async (req: Request, res: Response) => {
-  try {
-    const tokenVerify = jwt.verify(req.body.token, SecretKey);
-    if (tokenVerify) {
-      return res.status(200).send({
-        message: "Login by token Successful",
-        data: tokenVerify,
-      });
-    } else {
-      res.status(400).json({ message: "Cannot verify token" });
-    }
-  } catch (e) {
-    return res.status(500).json({ message: "Problem in verifying the token" });
-  }
-};
-
 //verify Token function
 export const verifyToken = (
   req: Request,
@@ -108,6 +92,23 @@ export const verifyToken = (
   }
 };
 
+// verify Officer by Token got from frontend
+export const verifyOfficerByToken = async (req: Request, res: Response) => {
+  try {
+    const tokenVerify = jwt.verify(req.body.token, SecretKey);
+    if (tokenVerify) {
+      return res.status(200).send({
+        message: "Login by token Successful",
+        data: tokenVerify,
+      });
+    } else {
+      res.status(400).json({ message: "Cannot verify token" });
+    }
+  } catch (e) {
+    return res.status(500).json({ message: "Problem in verifying the token" });
+  }
+};
+
 // Create Officer in the Backend Controller
 export const createOfficerController = async (req: Request, res: Response) => {
   try {
@@ -115,7 +116,7 @@ export const createOfficerController = async (req: Request, res: Response) => {
     email_id = email_id.trim();
     password = password.trim();
     if (!username || !email_id || !mobile_no || !password || !college_name) {
-      return res.status(400).json({ message: "Server Error" });
+      return res.status(400).json({ message: "Data Incomplete Error" });
     } else if (!/^[a-z A-Z]*$/.test(req.body.username)) {
       return res.status(400).json({ message: "username Error" });
     } else if (req.body.password < 8) {
@@ -123,7 +124,7 @@ export const createOfficerController = async (req: Request, res: Response) => {
     } else {
       const officer = await OfficerModel.find({ email_id });
       if (officer.length !== 0) {
-        return res.status(400).json({ message: "user Exists", data: officer });
+        return res.status(400).json({ message: "user Exists" });
       }
     }
 

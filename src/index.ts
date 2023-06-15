@@ -1,6 +1,5 @@
 import express, { Request, Response } from "express";
 import cors from "cors";
-import Mongoose from "mongoose";
 require("dotenv").config();
 
 const app = express();
