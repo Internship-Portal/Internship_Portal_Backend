@@ -1,6 +1,4 @@
-import { Schema, model, Document, Types } from "mongoose";
-import { Buffer } from "node:buffer";
-import validator from "validator";
+import { Schema, model, Document } from "mongoose";
 
 // Selected Students by Company Department wise student storing--
 
@@ -26,11 +24,6 @@ export interface selectedStudents {
 
 export interface subscribeRequest {
   company_id: string;
-  username: string;
-  mobile_no: string;
-  email_id: string;
-  company_name: string;
-  company_description: string;
 }
 
 // ----------------------------------- subscribeRequest Interface
@@ -53,11 +46,7 @@ export interface subscribedCompany {
 
 export interface cancelledCompany {
   company_id: string;
-  username: string;
-  mobile_no: string;
-  email_id: string;
-  company_name: string;
-  company_description: string;
+  index: string;
 }
 
 // ----------------------------------- cancelledCompany Interface
@@ -106,6 +95,7 @@ export interface Department {
 // -------------------------------------------- Officer Interface
 
 export interface Officer extends Document {
+  index: number;
   username: string;
   email_id: string;
   mobile_no: string;
@@ -187,21 +177,6 @@ export const subscribeRequestFromCompany = new Schema<subscribeRequest>({
   company_id: {
     type: String,
   },
-  username: {
-    type: String,
-  },
-  mobile_no: {
-    type: String,
-  },
-  email_id: {
-    type: String,
-  },
-  company_name: {
-    type: String,
-  },
-  company_description: {
-    type: String,
-  },
 });
 
 // ----------------------------------- subscribeRequestFromCompany Schema
@@ -212,21 +187,6 @@ export const subscribeRequesttoCompany = new Schema<subscribeRequest>({
   company_id: {
     type: String,
   },
-  username: {
-    type: String,
-  },
-  mobile_no: {
-    type: String,
-  },
-  email_id: {
-    type: String,
-  },
-  company_name: {
-    type: String,
-  },
-  company_description: {
-    type: String,
-  },
 });
 
 // ----------------------------------- subscribeRequestFromCompany Schema
@@ -235,21 +195,6 @@ export const subscribeRequesttoCompany = new Schema<subscribeRequest>({
 
 export const cancelledCompany = new Schema<cancelledCompany>({
   company_id: {
-    type: String,
-  },
-  username: {
-    type: String,
-  },
-  mobile_no: {
-    type: String,
-  },
-  email_id: {
-    type: String,
-  },
-  company_name: {
-    type: String,
-  },
-  company_description: {
     type: String,
   },
 });
@@ -294,14 +239,6 @@ export const StudentsSchema = new Schema<Students>({
   },
   cgpa: {
     type: Number,
-    validate: {
-      validator: function (value: any) {
-        const pattern = /^[0-9](\.[0-9]{1,2})?$/;
-        return pattern.test(value);
-      },
-      message: (props) =>
-        `${props.value} is not a valid CGPA. CGPA should have one digit before the decimal point and at most two digits after the decimal point.`,
-    },
   },
   year_batch: {
     type: Number,
@@ -395,34 +332,29 @@ export const DepartmentSchema = new Schema<Department>({
 // ----------------------------------------------- Officer Schema
 
 const OfficerSchema = new Schema<Officer>({
+  index: {
+    type: Number,
+    required: true,
+  },
   username: {
     type: String,
-    required: [true, "username is required"],
-    minlength: [3, "minimum 3 letters required"],
+    required: true,
   },
   mobile_no: {
     type: String,
     required: true,
-    minlength: [4, "minimum 4 number required"],
   },
   email_id: {
     type: String,
-    validate(value: string): void {
-      if (!validator.isEmail(value)) {
-        throw new Error("email is invalid");
-      }
-    },
     required: true,
   },
   password: {
     type: String,
     required: true,
-    minlength: [8, "minimum 8 number required"],
   },
   college_name: {
     type: String,
     required: true,
-    minlength: [3, "minimum 3 letters required"],
   },
   subscribe_request_from_company: {
     type: [subscribeRequestFromCompany],

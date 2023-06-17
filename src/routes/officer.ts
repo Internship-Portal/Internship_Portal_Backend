@@ -15,6 +15,7 @@ import {
   loginOfficerController,
   verifyToken,
   verifyOfficerByToken,
+  getDepartmentDetails,
 } from "../controller/officer";
 
 router.use(BodyParser.json());
@@ -55,5 +56,8 @@ router.put("/deleteOneStudentDetails/:id", deleteOneStudentDetails);
 
 // Route to convert CSV To JSON
 router.post("/uploadCSVOfStudents/:id", convertStudentsCSVtoJSON);
+
+// Get Student Details API
+router.get("/getDepartmentDetails/:id", getDepartmentDetails);
 
 export default router;

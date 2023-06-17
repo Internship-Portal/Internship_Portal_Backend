@@ -1,3 +1,4 @@
+import { Response } from "express";
 import {
   DocumentDefinition,
   FilterQuery,
@@ -7,17 +8,16 @@ import {
 import OfficerModel, { Officer } from "../models/officer";
 
 // Create Officer Service
-export const createOfficer = (input: DocumentDefinition<Officer>) => {
+export function createOfficer(input: DocumentDefinition<Officer>) {
   return OfficerModel.create(input);
-};
-
+}
 // Find Officer Service
-export const findOfficer = (
+export function findOfficer(
   query: FilterQuery<Officer>,
   options: QueryOptions = { lean: true }
-) => {
+) {
   return OfficerModel.find(query, {}, options);
-};
+}
 
 // Find and Update Officer Service
 export function findAndUpdate(
@@ -29,6 +29,6 @@ export function findAndUpdate(
 }
 
 // Delete Officer Service
-export const deleteOfficer = (query: FilterQuery<Officer>) => {
+export function deleteOfficer(query: FilterQuery<Officer>) {
   return OfficerModel.deleteOne(query);
-};
+}

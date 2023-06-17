@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from "express";
+import validator from "validator";
 import OfficerModel, { Officer, Students, Department } from "../models/officer";
 import multer from "multer";
 import csvtojson from "csvtojson";
@@ -54,12 +55,16 @@ export const loginOfficerController = async (req: Request, res: Response) => {
       if (data.length !== 0) {
         let foundOfficer = data[0];
         const hashedPassword = foundOfficer.password;
+        // comparing the password.
         bcrypt.compare(password, hashedPassword).then((results) => {
           if (results) {
-            const token = jwt.sign({ foundOfficer }, SecretKey);
+            const token = jwt.sign(
+              { data: data[0]._id, email_id: email_id },
+              SecretKey
+            );
             return res.status(200).send({
               message: "Login Successful",
-              data: data,
+              data: data[0]._id,
               token: token,
             });
           } else {
@@ -82,11 +87,15 @@ export const verifyToken = (
   next: NextFunction
 ) => {
   const bearerHeader = req.headers["authentication"];
-  if (typeof bearerHeader !== "undefined") {
+  if (bearerHeader !== undefined) {
     const bearer: string = bearerHeader as string;
     const token = bearer.split(" ")[1];
-    req.body.token = token;
-    next();
+    if (!token) {
+      return res.status(400).json({ message: "Unable to fetch token" });
+    } else {
+      req.body.token = token;
+      next();
+    }
   } else {
     return res.status(400).json({ message: "Invalid Token" });
   }
@@ -113,66 +122,107 @@ export const verifyOfficerByToken = async (req: Request, res: Response) => {
 export const createOfficerController = async (req: Request, res: Response) => {
   try {
     let { username, email_id, mobile_no, password, college_name } = req.body;
-    email_id = email_id.trim();
-    password = password.trim();
+
     if (!username || !email_id || !mobile_no || !password || !college_name) {
+      // anyone details not available
       return res.status(400).json({ message: "Data Incomplete Error" });
-    } else if (!/^[a-z A-Z]*$/.test(req.body.username)) {
-      return res.status(400).json({ message: "username Error" });
-    } else if (req.body.password < 8) {
-      return res.status(400).json({ message: "password Error" });
+    } else if (!validator.isEmail(email_id)) {
+      // Invalid Email id passed
+      return res.status(400).json({ message: "Invalid Email" });
+    } else if (password.length < 8) {
+      // password less than 8 characters
+      return res
+        .status(400)
+        .json({ message: "password less than 8 characters" });
+    } else if (mobile_no.length < 5) {
+      // mobile_no greater than 5 characters
+      return res
+        .status(400)
+        .json({ message: "mobile_no greater than 5 characters" });
     } else {
+      // checking if the Officer already exists in database
+      email_id = email_id.trim();
+      password = password.trim();
       const officer = await OfficerModel.find({ email_id });
       if (officer.length !== 0) {
-        return res.status(400).json({ message: "user Exists" });
+        return res.status(400).json({ message: "Officer already Exists" });
       }
-    }
 
-    // Password Hashing using bcrypt
-    const saltRounds = 10;
-    bcrypt
-      .hash(password, saltRounds)
-      .then((hashedPassword) => {
-        createOfficer({
-          username: username,
-          email_id: email_id,
-          password: hashedPassword,
-          mobile_no: mobile_no,
-          college_name: college_name,
-          subscribed_company: [],
-          cancelled_company: [],
-          subscribe_request_from_company: [],
-          subscribe_request_to_company: [],
-          college_details: [],
-        }).then((user) => {
-          return res.status(200).json({
-            message: "This is Officer Create Page",
-            data: user,
+      // alloting the index.
+      const lastOfficer = await OfficerModel.findOne().sort({ _id: -1 });
+      let index: number;
+
+      if (lastOfficer && lastOfficer.index === 0) {
+        // if mistake happens and index get set to 0 then next will be stored as 1
+        index = 1;
+      } else if (lastOfficer) {
+        // adding 1 to the previous officer index and storing it in our new officer
+        index = lastOfficer.index + 1;
+      } else {
+        index = 1; // Default index when no officer is found
+      }
+
+      // Password Hashing using bcrypt
+      const saltRounds = 10;
+      bcrypt
+        .hash(password, saltRounds)
+        .then((hashedPassword) => {
+          // finally creating and saving the officer
+          createOfficer({
+            index: index,
+            username: username,
+            email_id: email_id,
+            password: hashedPassword,
+            mobile_no: mobile_no,
+            college_name: college_name,
+            subscribed_company: [],
+            cancelled_company: [],
+            subscribe_request_from_company: [],
+            subscribe_request_to_company: [],
+            college_details: [],
+          }).then((user) => {
+            // then returning the Officer Id of the Officer.
+            return res.status(200).json({
+              message: "This is Officer Create Page",
+              data: user?._id,
+            });
           });
+        })
+        .catch((e) => {
+          return res
+            .status(500)
+            .json({ message: "error while hashing the password" });
         });
-      })
-      .catch((e) => {
-        return res
-          .status(500)
-          .json({ message: "error while hashing the password" });
-      });
-  } catch (e) {
+    }
+  } catch (error: any) {
     return res.status(500).json({ message: "Server Error" });
   }
 };
 
-// Find / Get One Officer by Id Controller
+// Find Get One Officer by Id Controller
 export const findOfficerController = async (
   req: Request,
   res: Response
 ): Promise<Response<any, Record<string, any>>> => {
   try {
+    // finding the officer by the ID got from the frontend
     const filter = { _id: req.params.id };
     let data = await findOfficer(filter);
-    return res.status(200).json({
-      message: "This is Officer findone Page",
-      data: data,
-    });
+
+    // checking if the officer exists or not
+    if (data.length === 0) {
+      return res.status(404).json({ message: "Officer not found" });
+    } else {
+      const officer = data[0];
+
+      // omiting the college details from officer
+      const { college_details, password, ...responseData } = officer;
+
+      return res.status(200).json({
+        message: "This is Officer findone Page",
+        data: responseData,
+      });
+    }
   } catch (e) {
     return res.status(500).json({ message: "Server Error" });
   }
@@ -183,7 +233,9 @@ export const getAllOfficerController = async (
   req: Request,
   res: Response
 ): Promise<Response<any, Record<string, any>>> => {
-  let data = await OfficerModel.find();
+  let data = await OfficerModel.find().select(
+    "-college_details -subscribe_request_from_company -subscribed_company -cancelled_company -subscribe_request_to_company"
+  );
   return res.json({
     message: "This is Officer getAll page",
     data: data,
@@ -207,7 +259,23 @@ export const deleteOfficerController = async (
       return res.status(400).json({ message: "Cannot find Officer" });
     }
   } catch (e) {
-    return res.status(500).json({ message: "Server Error" });
+    return res.status(500).json({ message: "Cannot find Officer" });
+  }
+};
+
+//Get Student Details
+export const getDepartmentDetails = async (req: Request, res: Response) => {
+  try {
+    if (!req.params.id) {
+      return res.status(400).json({ message: "Email not found" });
+    }
+
+    const data = await OfficerModel.find({ _id: req.params.id });
+    const sendData = data[0].college_details;
+
+    return res.status(200).json(sendData);
+  } catch (err) {
+    res.status(401).json({ message: err });
   }
 };
 

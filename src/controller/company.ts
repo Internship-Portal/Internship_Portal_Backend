@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
-import { Types } from "mongoose";
+import validator from "validator";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-const SecretKey = "zaignAp12KbAt6N30KmSyHnAb";
+const SecretKey = "lim4yAey6K78dA8N1yKof4Stp9H4A";
 
 import CompanyModel, { Company } from "../models/company";
 import {
@@ -69,38 +69,65 @@ export const createCompanyController = async (
   res: Response
 ): Promise<any> => {
   try {
+    let {
+      username,
+      email_id,
+      password,
+      mobile_no,
+      company_name,
+      company_description,
+    } = req.body;
     if (
-      !req.body.username ||
-      !req.body.email_id ||
-      !req.body.mobile_no ||
-      !req.body.password ||
-      !req.body.company_name ||
-      !req.body.company_description
+      !username ||
+      !email_id ||
+      !mobile_no ||
+      !password ||
+      !company_name ||
+      !company_description
     ) {
+      // Data Imcomplete
       return res.status(400).json({ message: "Data Incomplete Error" });
-    } else if (!/^[a-z A-Z 0-9]*$/.test(req.body.username)) {
-      return res.status(400).json({ message: "username Error" });
-    } else if (req.body.password < 8) {
-      return res.status(400).json({ message: "password Error" });
+    } else if (!validator.isEmail(email_id)) {
+      // Invalid Email id passed
+      return res.status(400).json({ message: "Invalid Email" });
+    } else if (!/^[a-z A-Z 0-9]*$/.test(username)) {
+      // Invalid UserName
+      return res
+        .status(400)
+        .json({ message: "username Should be in a-z A-Z 0-9 format" });
+    } else if (password.length < 8) {
+      // Password 8 characters
+      console.log("This is true");
+      return res
+        .status(400)
+        .json({ message: "password should be atleast 8 characters" });
     } else {
-      let {
-        username,
-        email_id,
-        password,
-        mobile_no,
-        company_name,
-        company_description,
-      } = req.body;
       email_id = email_id.trim();
       password = password.trim();
+      // Find the email id exists or not.
       const officer = await CompanyModel.find({ email_id });
       if (officer.length !== 0) {
         return res.status(400).json({ message: "Company already Exists" });
       } else {
+        // alloting the index.
+        const lastCompany = await CompanyModel.findOne().sort({ _id: -1 });
+        let index: number;
+
+        if (lastCompany && lastCompany?.index === 0) {
+          // if mistake happens and index get set to 0 then next will be stored as 1
+          index = 1;
+        } else if (lastCompany) {
+          // adding 1 to the previous officer index and storing it in our new officer
+          index = Number.isNaN(lastCompany.index) ? 0 : lastCompany.index + 1;
+        } else {
+          index = 1; // Default index when no officer is found
+        }
         // password hashing using bcrypt
         const saltRounds = 10;
         bcrypt.hash(password, saltRounds).then((hashedPassword) => {
+          console.log(index);
           createCompany({
+            index: index,
             username: username,
             password: hashedPassword,
             email_id: email_id,
@@ -112,18 +139,13 @@ export const createCompanyController = async (
             subscribed_officer: [],
             cancelled_officer: [],
             selected_students: [],
-          })
-            .then((company) => {
-              return res.status(200).json({
-                message: "This is Company's Create Page",
-                data: company,
-              });
-            })
-            .catch((e) => {
-              return res
-                .status(500)
-                .json({ message: "error while hashing the password" });
+          }).then((company) => {
+            console.log(company);
+            return res.status(200).json({
+              message: "This is Company's Create Page",
+              data: company,
             });
+          });
         });
       }
     }
@@ -181,3 +203,5 @@ export const deleteCompanyController = async (
     res.status(500).json({ message: "Server Error" });
   }
 };
+
+// Add subscribed Officer
