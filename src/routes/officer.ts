@@ -16,6 +16,8 @@ import {
   verifyOfficerByToken,
   getDepartmentDetails,
   getStudentDetailsbyDeptAndYear,
+  otpEmailSendController,
+  forgetPasswordController,
 } from "../controller/officer";
 
 // Set up multer storage
@@ -75,5 +77,11 @@ router.post(
   upload.any(),
   getStudentDetailsbyDeptAndYear
 );
+
+// Send OTP to the email_id send
+router.post("/otpEmail", otpEmailSendController);
+
+// Set the new password by sending the token and new password
+router.post("/forgetPassword", forgetPasswordController);
 
 export default router;
