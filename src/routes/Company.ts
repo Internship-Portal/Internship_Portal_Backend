@@ -1,6 +1,5 @@
 import express, { Request, Response, Router } from "express";
 const router: Router = Router();
-import BodyParser from "body-parser";
 import {
   createCompanyController,
   findCompanyController,
@@ -9,8 +8,6 @@ import {
   verifyCompanyByToken,
   loginCompanyController,
 } from "../controller/company";
-router.use(BodyParser.json());
-router.use(BodyParser.urlencoded({ extended: true }));
 
 // Routes connected to the controllers companies function
 

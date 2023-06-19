@@ -6,6 +6,9 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 app.use(cors());
 app.use(express.json());
+app.use(
+  express.urlencoded({ extended: false, limit: 10000, parameterLimit: 6 })
+);
 
 // Officer Routes Connection
 import OfficerRouter from "./routes/officer";

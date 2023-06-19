@@ -27,7 +27,8 @@ export const loginCompanyController = async (req: Request, res: Response) => {
         const hashedPassword = foundCompany.password;
         bcrypt.compare(password, hashedPassword).then((results) => {
           if (results) {
-            const token = jwt.sign({ foundCompany }, SecretKey);
+            const tokenData = foundCompany._id;
+            const token = jwt.sign({ tokenData }, SecretKey);
             return res.status(200).send({
               message: "Login Successful",
               data: foundCompany,
