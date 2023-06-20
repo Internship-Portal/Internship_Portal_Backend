@@ -24,6 +24,7 @@ export interface selectedStudents {
 
 export interface subscribeRequest {
   company_id: string;
+  index: number;
 }
 
 // ----------------------------------- subscribeRequest Interface
@@ -32,11 +33,7 @@ export interface subscribeRequest {
 
 export interface subscribedCompany {
   company_id: string;
-  username: string;
-  mobile_no: string;
-  email_id: string;
-  company_name: string;
-  company_description: string;
+  index: number;
   selectedstudents: selectedStudents[];
 }
 
@@ -46,7 +43,7 @@ export interface subscribedCompany {
 
 export interface cancelledCompany {
   company_id: string;
-  index: string;
+  index: number;
 }
 
 // ----------------------------------- cancelledCompany Interface
@@ -149,20 +146,8 @@ export const subscribedCompany = new Schema<subscribedCompany>({
   company_id: {
     type: String,
   },
-  username: {
-    type: String,
-  },
-  mobile_no: {
-    type: String,
-  },
-  email_id: {
-    type: String,
-  },
-  company_name: {
-    type: String,
-  },
-  company_description: {
-    type: String,
+  index: {
+    type: Number,
   },
   selectedstudents: {
     type: [selectedStudents],
@@ -177,6 +162,9 @@ export const subscribeRequestFromCompany = new Schema<subscribeRequest>({
   company_id: {
     type: String,
   },
+  index: {
+    type: Number,
+  },
 });
 
 // ----------------------------------- subscribeRequestFromCompany Schema
@@ -187,6 +175,9 @@ export const subscribeRequesttoCompany = new Schema<subscribeRequest>({
   company_id: {
     type: String,
   },
+  index: {
+    type: Number,
+  },
 });
 
 // ----------------------------------- subscribeRequestFromCompany Schema
@@ -196,6 +187,9 @@ export const subscribeRequesttoCompany = new Schema<subscribeRequest>({
 export const cancelledCompany = new Schema<cancelledCompany>({
   company_id: {
     type: String,
+  },
+  index: {
+    type: Number,
   },
 });
 
