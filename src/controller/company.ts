@@ -89,16 +89,14 @@ export const createCompanyController = async (
       email_id,
       password,
       mobile_no,
-      company_name,
-      company_description,
+      company_name
     } = req.body;
     if (
       !username ||
       !email_id ||
       !mobile_no ||
       !password ||
-      !company_name ||
-      !company_description
+      !company_name 
     ) {
       // Data Imcomplete
       return res.status(400).json({ message: "Data Incomplete Error" });
@@ -150,7 +148,7 @@ export const createCompanyController = async (
             email_id: email_id,
             mobile_no: mobile_no,
             company_name: company_name,
-            company_description: company_description,
+            company_description: "",
             subscribe_request_from_officer: [],
             subscribe_request_to_officer: [],
             subscribed_officer: [],
