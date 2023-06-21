@@ -28,6 +28,8 @@ export interface batchwiseDepartmentsInterface {
 export interface cancelledOfficer {
   officer_id: string;
   index: number;
+  username: string;
+  college_name: string;
   message: string;
 }
 // ---------------------------------------------- subscribedOfficer Interface
@@ -35,6 +37,8 @@ export interface cancelledOfficer {
 // ---------------------------------------------- subscribedOfficer Interface
 export interface subscribedOfficer {
   officer_id: string;
+  username: string;
+  college_name: string;
   index: number;
   message: string;
   access: batchwiseDepartmentsInterface[];
@@ -46,6 +50,8 @@ export interface subscribedOfficer {
 export interface subscribeRequest {
   officer_id: string;
   index: number;
+  username: string;
+  college_name: string;
   message: string;
 }
 // ---------------------------------------------- subscribeRequest Interface
@@ -101,6 +107,12 @@ const cancelledOfficer = new Schema<cancelledOfficer>({
   message: {
     type: String,
   },
+  username: {
+    type: String,
+  },
+  college_name: {
+    type: String,
+  },
 });
 
 // ---------------------------------------------- cancelledOfficer Schema
@@ -127,6 +139,12 @@ const subscribedOfficer = new Schema<subscribedOfficer>({
   index: {
     type: Number,
   },
+  username: {
+    type: String,
+  },
+  college_name: {
+    type: String,
+  },
   access: {
     type: [batchWiseDepartments],
   },
@@ -150,6 +168,12 @@ const subscribeRequest = new Schema<subscribeRequest>({
     type: Number,
   },
   message: {
+    type: String,
+  },
+  username: {
+    type: String,
+  },
+  college_name: {
     type: String,
   },
 });

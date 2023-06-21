@@ -28,6 +28,9 @@ export interface subscribeRequest {
   company_id: string;
   index: number;
   message: string;
+  username: string;
+  company_name: string;
+  company_description: string;
 }
 
 // ----------------------------------- subscribeRequest Interface
@@ -38,6 +41,9 @@ export interface subscribedCompany {
   company_id: string;
   index: number;
   message: string;
+  username: string;
+  company_name: string;
+  company_description: string;
   access: batchwiseDepartmentsInterface[];
   selectedstudents: selectedStudents[];
 }
@@ -49,6 +55,9 @@ export interface subscribedCompany {
 export interface cancelledCompany {
   company_id: string;
   index: number;
+  username: string;
+  company_name: string;
+  company_description: string;
   message: string;
 }
 
@@ -142,6 +151,7 @@ export const selectedStudents = new Schema<selectedStudents>({
   end_date: {
     type: Date,
   },
+
   selectedstudents: {
     type: [selectedStudentsDepartwise],
   },
@@ -164,6 +174,15 @@ export const subscribedCompany = new Schema<subscribedCompany>({
   message: {
     type: String,
   },
+  username: {
+    type: String,
+  },
+  company_name: {
+    type: String,
+  },
+  company_description: {
+    type: String,
+  },
   selectedstudents: {
     type: [selectedStudents],
   },
@@ -183,6 +202,15 @@ export const subscribeRequestFromCompany = new Schema<subscribeRequest>({
   message: {
     type: String,
   },
+  username: {
+    type: String,
+  },
+  company_name: {
+    type: String,
+  },
+  company_description: {
+    type: String,
+  },
 });
 
 // ----------------------------------- subscribeRequestFromCompany Schema
@@ -199,6 +227,15 @@ export const subscribeRequesttoCompany = new Schema<subscribeRequest>({
   message: {
     type: String,
   },
+  username: {
+    type: String,
+  },
+  company_name: {
+    type: String,
+  },
+  company_description: {
+    type: String,
+  },
 });
 
 // ----------------------------------- subscribeRequestFromCompany Schema
@@ -213,6 +250,15 @@ export const cancelledCompany = new Schema<cancelledCompany>({
     type: Number,
   },
   message: {
+    type: String,
+  },
+  username: {
+    type: String,
+  },
+  company_name: {
+    type: String,
+  },
+  company_description: {
     type: String,
   },
 });

@@ -21,6 +21,10 @@ import {
   addSubscribeRequestToCompany,
   addSubscribedOfficerFromOfficer,
   giveAccessToCompanies,
+  getAllRequestedCompanies,
+  getAllSubscribedCompanies,
+  getAllRequestsbyOfficer,
+  getAllCancelledRequests,
 } from "../controller/officer";
 
 // Set up multer storage
@@ -93,5 +97,17 @@ router.put("/addSubscribedOfficerFromOfficer", addSubscribedOfficerFromOfficer);
 
 // give access to companies by passing access and company_id
 router.put("/giveAccessToCompanies", giveAccessToCompanies);
+
+// get All Requested companies details
+router.get("/getAllRequestedCompanies", getAllRequestedCompanies);
+
+// get All Subscribed companies details
+router.get("/getAllRequestsbyOfficer", getAllRequestsbyOfficer);
+
+// get All cancelled companies
+router.get("/getAllCancelledRequests", getAllCancelledRequests);
+
+// get All subscribed Companies
+router.get("/getAllSubscribedCompanies", getAllSubscribedCompanies);
 
 export default router;

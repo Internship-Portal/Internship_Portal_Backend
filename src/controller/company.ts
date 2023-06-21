@@ -373,11 +373,16 @@ export const addSubscribeRequestToOfficer = async (
           const dataCompany = {
             officer_id: officerData[0]._id,
             index: officerData[0].index,
+            college_name: officerData[0].college_name,
+            username: officerData[0].username,
             message: message,
           };
           const dataOfficer = {
             company_id: companydata[0]._id,
             index: companydata[0].index,
+            username: companydata[0].username,
+            company_name: companydata[0].company_name,
+            company_description: companydata[0].company_description,
             message: message,
           };
 
@@ -454,6 +459,8 @@ export const addSubscribedOfficerFromCompany = async (
           const companyData = {
             officer_id: officer_id,
             index: officer[0].index,
+            college_name: officer[0].college_name,
+            username: officer[0].username,
             access: [],
             message: message,
             selectedstudents: [],
@@ -465,6 +472,9 @@ export const addSubscribedOfficerFromCompany = async (
             company_id: companydata[0]._id,
             index: companydata[0].index,
             access: [],
+            username: companydata[0].username,
+            company_name: companydata[0].company_name,
+            company_description: companydata[0].company_description,
             message: message,
             selectedstudents: [],
           };
@@ -541,6 +551,9 @@ export const addCancelledRequest = async (req: Request, res: Response) => {
             company_id: company[0]._id,
             index: company[0].index,
             message: message,
+            username: company[0].username,
+            company_name: company[0].company_name,
+            company_description: company[0].company_description,
           };
           officer[0].cancelled_company.push(cancleOfficer);
 
@@ -549,6 +562,8 @@ export const addCancelledRequest = async (req: Request, res: Response) => {
             officer_id: officer[0]._id,
             index: officer[0].index,
             message: message,
+            college_name: officer[0].college_name,
+            username: officer[0].username,
           };
           company[0].cancelled_officer.push(cancleCompany);
 
@@ -808,6 +823,179 @@ export const getStudentDetailsbyDeptAndYear = async (
     }
   } catch (e) {
     // error:
+    return res.status(500).json({ message: "Server Error" });
+  }
+};
+
+export const getAllRequestedOfficers = async (req: Request, res: Response) => {
+  try {
+    const bearerHeader = req.headers.authorization;
+    const bearer: string = bearerHeader as string;
+    const tokenVerify = jwt.verify(
+      bearer.split(" ")[1],
+      SecretKey
+    ) as jwt.JwtPayload;
+    if (tokenVerify) {
+      const foundCompany = await CompanyModel.find({
+        _id: tokenVerify.tokenData,
+      });
+
+      if (foundCompany.length === 0) {
+        // Error:
+        return res.status(400).json({ message: "Officer does not exist" });
+      } else {
+        const getAllRequestedOfficers =
+          foundCompany[0].subscribe_request_from_officer;
+
+        if (getAllRequestedOfficers.length === 0) {
+          // No Requested Companies
+          return res.status(200).json({ message: "Not any Request" });
+        } else {
+          // Success:
+          return res.status(200).json({
+            message: "get All Requested Companies Successful",
+            data: getAllRequestedOfficers,
+          });
+        }
+      }
+    } else {
+      // Error:
+      return res
+        .status(500)
+        .json({ message: "Problem in verifying the token" });
+    }
+  } catch (e) {
+    // Error:
+    return res.status(500).json({ message: "Server Error" });
+  }
+};
+
+export const getAllRequestsbyCompany = async (req: Request, res: Response) => {
+  try {
+    const bearerHeader = req.headers.authorization;
+    const bearer: string = bearerHeader as string;
+    const tokenVerify = jwt.verify(
+      bearer.split(" ")[1],
+      SecretKey
+    ) as jwt.JwtPayload;
+    if (tokenVerify) {
+      const foundCompany = await CompanyModel.find({
+        _id: tokenVerify.tokenData,
+      });
+
+      if (foundCompany.length === 0) {
+        // Error:
+        return res.status(400).json({ message: "Officer does not exist" });
+      } else {
+        const getAllRequestedOfficers =
+          foundCompany[0].subscribe_request_to_officer;
+
+        if (getAllRequestedOfficers.length === 0) {
+          // No Requested Companies
+          return res.status(200).json({ message: "Not any Request" });
+        } else {
+          // Success:
+          return res.status(200).json({
+            message: "get All Requested Companies Successful",
+            data: getAllRequestedOfficers,
+          });
+        }
+      }
+    } else {
+      // Error:
+      return res
+        .status(500)
+        .json({ message: "Problem in verifying the token" });
+    }
+  } catch (e) {
+    // Error:
+    return res.status(500).json({ message: "Server Error" });
+  }
+};
+
+export const getAllCancelledRequests = async (req: Request, res: Response) => {
+  try {
+    const bearerHeader = req.headers.authorization;
+    const bearer: string = bearerHeader as string;
+    const tokenVerify = jwt.verify(
+      bearer.split(" ")[1],
+      SecretKey
+    ) as jwt.JwtPayload;
+    if (tokenVerify) {
+      const foundCompany = await CompanyModel.find({
+        _id: tokenVerify.tokenData,
+      });
+
+      if (foundCompany.length === 0) {
+        // Error:
+        return res.status(400).json({ message: "Officer does not exist" });
+      } else {
+        const getAllCancelledRequests = foundCompany[0].cancelled_officer;
+
+        if (getAllCancelledRequests.length === 0) {
+          // No Requested Companies
+          return res
+            .status(200)
+            .json({ message: "Not any Cancelled Requests" });
+        } else {
+          // Success:
+          return res.status(200).json({
+            message: "get All Requested Companies Successful",
+            data: getAllCancelledRequests,
+          });
+        }
+      }
+    } else {
+      // Error:
+      return res
+        .status(500)
+        .json({ message: "Problem in verifying the token" });
+    }
+  } catch (e) {
+    // Error:
+    return res.status(500).json({ message: "Server Error" });
+  }
+};
+
+export const getAllSubscribedOfficers = async (req: Request, res: Response) => {
+  try {
+    const bearerHeader = req.headers.authorization;
+    const bearer: string = bearerHeader as string;
+    const tokenVerify = jwt.verify(
+      bearer.split(" ")[1],
+      SecretKey
+    ) as jwt.JwtPayload;
+    if (tokenVerify) {
+      const foundCompany = await CompanyModel.find({
+        _id: tokenVerify.tokenData,
+      });
+
+      if (foundCompany.length === 0) {
+        // Error:
+        return res.status(400).json({ message: "Officer does not exist" });
+      } else {
+        const getAllSubscribedOfficers =
+          foundCompany[0].subscribe_request_to_officer;
+
+        if (getAllSubscribedOfficers.length === 0) {
+          // No Requested Companies
+          return res.status(200).json({ message: "Not any Request" });
+        } else {
+          // Success:
+          return res.status(200).json({
+            message: "get All Requested Companies Successful",
+            data: getAllSubscribedOfficers,
+          });
+        }
+      }
+    } else {
+      // Error:
+      return res
+        .status(500)
+        .json({ message: "Problem in verifying the token" });
+    }
+  } catch (e) {
+    // Error:
     return res.status(500).json({ message: "Server Error" });
   }
 };

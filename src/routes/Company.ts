@@ -13,6 +13,10 @@ import {
   addSubscribedOfficerFromCompany,
   addCancelledRequest,
   getStudentDetailsbyDeptAndYear,
+  getAllSubscribedOfficers,
+  getAllCancelledRequests,
+  getAllRequestsbyCompany,
+  getAllRequestedOfficers,
 } from "../controller/company";
 
 // Routes connected to the controllers companies function
@@ -52,5 +56,17 @@ router.put("/addCancelledRequest", addCancelledRequest);
 
 // get Officer Details
 router.put("/getStudentDetailsbyDeptAndYear", getStudentDetailsbyDeptAndYear);
+
+// get All Subscribed Officers
+router.get("/getAllSubscribedOfficers", getAllSubscribedOfficers);
+
+// get All Cancelled Requests
+router.get("/getAllCancelledRequests", getAllCancelledRequests);
+
+// get All Requests by Company
+router.get("/getAllRequestsbyCompany", getAllRequestsbyCompany);
+
+// get All Requested Officers
+router.get("/getAllRequestedOfficers", getAllRequestedOfficers);
 
 export default router;
