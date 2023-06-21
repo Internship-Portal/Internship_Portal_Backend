@@ -30,7 +30,6 @@ export interface subscribeRequest {
   message: string;
   username: string;
   company_name: string;
-  company_description: string;
 }
 
 // ----------------------------------- subscribeRequest Interface
@@ -43,7 +42,6 @@ export interface subscribedCompany {
   message: string;
   username: string;
   company_name: string;
-  company_description: string;
   access: batchwiseDepartmentsInterface[];
   selectedstudents: selectedStudents[];
 }
@@ -57,7 +55,6 @@ export interface cancelledCompany {
   index: number;
   username: string;
   company_name: string;
-  company_description: string;
   message: string;
 }
 
@@ -180,9 +177,6 @@ export const subscribedCompany = new Schema<subscribedCompany>({
   company_name: {
     type: String,
   },
-  company_description: {
-    type: String,
-  },
   selectedstudents: {
     type: [selectedStudents],
   },
@@ -208,9 +202,6 @@ export const subscribeRequestFromCompany = new Schema<subscribeRequest>({
   company_name: {
     type: String,
   },
-  company_description: {
-    type: String,
-  },
 });
 
 // ----------------------------------- subscribeRequestFromCompany Schema
@@ -233,9 +224,6 @@ export const subscribeRequesttoCompany = new Schema<subscribeRequest>({
   company_name: {
     type: String,
   },
-  company_description: {
-    type: String,
-  },
 });
 
 // ----------------------------------- subscribeRequestFromCompany Schema
@@ -256,9 +244,6 @@ export const cancelledCompany = new Schema<cancelledCompany>({
     type: String,
   },
   company_name: {
-    type: String,
-  },
-  company_description: {
     type: String,
   },
 });

@@ -64,7 +64,6 @@ export interface Company extends Document {
   password: string;
   mobile_no: string;
   company_name: string;
-  company_description: string;
   subscribe_request_from_officer: subscribeRequest[];
   subscribe_request_to_officer: subscribeRequest[];
   subscribed_officer: subscribedOfficer[];
@@ -199,9 +198,6 @@ const CompanySchema = new Schema<Company>({
     type: String,
   },
   company_name: {
-    type: String,
-  },
-  company_description: {
     type: String,
   },
   subscribe_request_from_officer: {

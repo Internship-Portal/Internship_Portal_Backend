@@ -84,20 +84,8 @@ export const createCompanyController = async (
   res: Response
 ): Promise<any> => {
   try {
-    let {
-      username,
-      email_id,
-      password,
-      mobile_no,
-      company_name
-    } = req.body;
-    if (
-      !username ||
-      !email_id ||
-      !mobile_no ||
-      !password ||
-      !company_name 
-    ) {
+    let { username, email_id, password, mobile_no, company_name } = req.body;
+    if (!username || !email_id || !mobile_no || !password || !company_name) {
       // Data Imcomplete
       return res.status(400).json({ message: "Data Incomplete Error" });
     } else if (!validator.isEmail(email_id)) {
@@ -148,7 +136,6 @@ export const createCompanyController = async (
             email_id: email_id,
             mobile_no: mobile_no,
             company_name: company_name,
-            company_description: "",
             subscribe_request_from_officer: [],
             subscribe_request_to_officer: [],
             subscribed_officer: [],
@@ -380,7 +367,6 @@ export const addSubscribeRequestToOfficer = async (
             index: companydata[0].index,
             username: companydata[0].username,
             company_name: companydata[0].company_name,
-            company_description: companydata[0].company_description,
             message: message,
           };
 
@@ -472,7 +458,6 @@ export const addSubscribedOfficerFromCompany = async (
             access: [],
             username: companydata[0].username,
             company_name: companydata[0].company_name,
-            company_description: companydata[0].company_description,
             message: message,
             selectedstudents: [],
           };
@@ -551,7 +536,6 @@ export const addCancelledRequest = async (req: Request, res: Response) => {
             message: message,
             username: company[0].username,
             company_name: company[0].company_name,
-            company_description: company[0].company_description,
           };
           officer[0].cancelled_company.push(cancleOfficer);
 

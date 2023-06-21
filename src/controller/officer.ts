@@ -973,7 +973,6 @@ export const addSubscribeRequestToCompany = async (
             message: message,
             username: companydata[0].username,
             company_name: companydata[0].company_name,
-            company_description: companydata[0].company_description,
           };
 
           // push the data in company in subscribe_request_from_officer
@@ -1043,7 +1042,6 @@ export const addCancelledRequest = async (req: Request, res: Response) => {
           message: message,
           username: company[0].username,
           company_name: company[0].company_name,
-          company_description: company[0].company_description,
         };
         officer[0].cancelled_company.push(cancleOfficer);
 
@@ -1142,7 +1140,6 @@ export const addSubscribedOfficerFromOfficer = async (
             access: [],
             username: company[0].username,
             company_name: company[0].company_name,
-            company_description: company[0].company_description,
             message: message,
             selectedstudents: [],
           };
