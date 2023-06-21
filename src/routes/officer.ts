@@ -20,6 +20,7 @@ import {
   addCancelledRequest,
   addSubscribeRequestToCompany,
   addSubscribedOfficerFromOfficer,
+  giveAccessToCompanies,
 } from "../controller/officer";
 
 // Set up multer storage
@@ -60,11 +61,7 @@ router.put("/removeCollegeDetails/:id", removeDepartmentDetails);
 router.put("/addOneStudentDetails/:id", addOneStudentDetails);
 
 // Delete One Student Details manually
-router.put(
-  "/deleteOneStudentDetails/:id",
-
-  deleteOneStudentDetails
-);
+router.put("/deleteOneStudentDetails/:id", deleteOneStudentDetails);
 
 // Route to convert CSV To JSON
 router.post("/uploadCSVOfStudents/:id", convertStudentsCSVtoJSON);
@@ -93,5 +90,8 @@ router.post("/addSubscribeRequestToCompany", addSubscribeRequestToCompany);
 
 // add subscription to the Officers
 router.put("/addSubscribedOfficerFromOfficer", addSubscribedOfficerFromOfficer);
+
+// give access to companies by passing access and company_id
+router.put("/giveAccessToCompanies", giveAccessToCompanies);
 
 export default router;

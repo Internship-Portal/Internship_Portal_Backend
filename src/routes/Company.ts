@@ -12,6 +12,7 @@ import {
   addSubscribeRequestToOfficer,
   addSubscribedOfficerFromCompany,
   addCancelledRequest,
+  getStudentDetailsbyDeptAndYear,
 } from "../controller/company";
 
 // Routes connected to the controllers companies function
@@ -48,5 +49,8 @@ router.put("/addSubscribedOfficerFromCompany", addSubscribedOfficerFromCompany);
 
 // cancle request of officer
 router.put("/addCancelledRequest", addCancelledRequest);
+
+// get Officer Details
+router.put("/getStudentDetailsbyDeptAndYear", getStudentDetailsbyDeptAndYear);
 
 export default router;

@@ -1,5 +1,9 @@
 import { model, Schema, Document, Types } from "mongoose";
-import { Students, selectedStudentsDepartwise } from "./officer";
+import {
+  Students,
+  selectedStudentsDepartwise,
+  StudentsSchema,
+} from "./officer";
 
 // --------------- selected students department of Officer Interface
 export interface departments {
@@ -7,22 +11,24 @@ export interface departments {
   year_batch: number;
   internship_start_date: Date;
   internship_end_date: Date;
-  students_details: [Students];
+  students_details: Students[];
 }
 // --------------- selected students department of Officer Interface
 
-// ---------------------------------------------- selectedStudents Interface
-export interface selectedStudents {
-  officer_id: string;
-  index: string;
-  departments: departments[];
+// ---------------------------------- batchwise department interface
+
+export interface batchwiseDepartmentsInterface {
+  year_batch: number;
+  departments: [string];
 }
-// ---------------------------------------------- selectedStudents Interface
+
+// ---------------------------------- batchwise department interface
 
 // ---------------------------------------------- subscribedOfficer Interface
 export interface cancelledOfficer {
   officer_id: string;
   index: number;
+  message: string;
 }
 // ---------------------------------------------- subscribedOfficer Interface
 
@@ -30,6 +36,9 @@ export interface cancelledOfficer {
 export interface subscribedOfficer {
   officer_id: string;
   index: number;
+  message: string;
+  access: batchwiseDepartmentsInterface[];
+  selectedstudents: departments[];
 }
 // ---------------------------------------------- subscribedOfficer Interface
 
@@ -37,6 +46,7 @@ export interface subscribedOfficer {
 export interface subscribeRequest {
   officer_id: string;
   index: number;
+  message: string;
 }
 // ---------------------------------------------- subscribeRequest Interface
 
@@ -53,7 +63,7 @@ export interface Company extends Document {
   subscribe_request_to_officer: subscribeRequest[];
   subscribed_officer: subscribedOfficer[];
   cancelled_officer: cancelledOfficer[];
-  selected_students: selectedStudents[];
+  selected_students: departments[];
 }
 // ---------------------------------------------- Company Interface
 
@@ -72,24 +82,12 @@ const departmentDetails = new Schema<departments>({
   internship_end_date: {
     type: Date,
   },
-  students_details: [selectedStudentsDepartwise],
+  students_details: {
+    type: [StudentsSchema],
+  },
 });
 
 // ---------------------selected student Department wise Officer Schema
-
-// ---------------------------------------------- selectedStudents Schema
-
-const selectedStudents = new Schema<selectedStudents>({
-  officer_id: {
-    type: String,
-  },
-  index: {
-    type: String,
-  },
-  departments: [departmentDetails],
-});
-
-// ---------------------------------------------- selectedStudents Schema
 
 // ---------------------------------------------- cancelledOfficer Schema
 
@@ -100,9 +98,25 @@ const cancelledOfficer = new Schema<cancelledOfficer>({
   index: {
     type: Number,
   },
+  message: {
+    type: String,
+  },
 });
 
 // ---------------------------------------------- cancelledOfficer Schema
+
+// ---------------------------------------------- batchwiseDepartments Schema
+
+export const batchWiseDepartments = new Schema<batchwiseDepartmentsInterface>({
+  year_batch: {
+    type: Number,
+  },
+  departments: {
+    type: [String],
+  },
+});
+
+// ---------------------------------------------- batchwiseDepartment Schema
 
 // ---------------------------------------------- subscribedOfficer Schema
 
@@ -112,6 +126,15 @@ const subscribedOfficer = new Schema<subscribedOfficer>({
   },
   index: {
     type: Number,
+  },
+  access: {
+    type: [batchWiseDepartments],
+  },
+  message: {
+    type: String,
+  },
+  selectedstudents: {
+    type: [departmentDetails],
   },
 });
 
@@ -125,6 +148,9 @@ const subscribeRequest = new Schema<subscribeRequest>({
   },
   index: {
     type: Number,
+  },
+  message: {
+    type: String,
   },
 });
 
@@ -165,9 +191,6 @@ const CompanySchema = new Schema<Company>({
   },
   cancelled_officer: {
     type: [cancelledOfficer],
-  },
-  selected_students: {
-    type: [selectedStudents],
   },
 });
 
