@@ -951,39 +951,47 @@ export const addSubscribeRequestToCompany = async (
       SecretKey
     ) as jwt.JwtPayload;
     if (tokenVerify) {
-      // Find Officer and Company in both
-      let officerData = await OfficerModel.find({ _id: tokenVerify.data });
-      let companydata = await CompanyModel.find({ _id: req.body._id });
-      if (companydata.length !== 0) {
-        const dataCompany = {
-          officer_id: officerData[0]._id,
-          index: officerData[0].index,
-        };
-        const dataOfficer = {
-          company_id: companydata[0]._id,
-          index: companydata[0].index,
-        };
+      const { _id, message } = req.body;
+      if (!_id || !message) {
+        // Error:
+        return res.status(400).json({ message: "Incomplete Data" });
+      } else {
+        // Find Officer and Company in both
+        let officerData = await OfficerModel.find({ _id: tokenVerify.data });
+        let companydata = await CompanyModel.find({ _id: _id });
+        if (companydata.length !== 0) {
+          const dataCompany = {
+            officer_id: officerData[0]._id,
+            index: officerData[0].index,
+            message: message,
+          };
+          const dataOfficer = {
+            company_id: companydata[0]._id,
+            index: companydata[0].index,
+            message: message,
+          };
 
-        // push the data in company in subscribe_request_from_officer
-        companydata[0].subscribe_request_from_officer.push(dataCompany);
+          // push the data in company in subscribe_request_from_officer
+          companydata[0].subscribe_request_from_officer.push(dataCompany);
 
-        // push the data in officer in subscribe_request_to_company
-        officerData[0].subscribe_request_to_company.push(dataOfficer);
+          // push the data in officer in subscribe_request_to_company
+          officerData[0].subscribe_request_to_company.push(dataOfficer);
 
-        // save
-        const savedCompany = await companydata[0].save();
-        const savedOfficer = await officerData[0].save();
+          // save
+          const savedCompany = await companydata[0].save();
+          const savedOfficer = await officerData[0].save();
 
-        if (savedCompany && savedOfficer) {
-          // successfully saved the data
-          return res.status(200).json({ message: "Request Send" });
+          if (savedCompany && savedOfficer) {
+            // successfully saved the data
+            return res.status(200).json({ message: "Request Send" });
+          } else {
+            // Error:
+            return res.status(400).json({ message: "Request cannot send" });
+          }
         } else {
           // Error:
-          return res.status(400).json({ message: "Request cannot send" });
+          return res.status(400).json({ message: "Company does not exist" });
         }
-      } else {
-        // Error:
-        return res.status(400).json({ message: "Company does not exist" });
       }
     } else {
       // Error:
@@ -995,6 +1003,7 @@ export const addSubscribeRequestToCompany = async (
   }
 };
 
+// cancle the request of companies by companies and add that data in both officer and company cancelled schema
 export const addCancelledRequest = async (req: Request, res: Response) => {
   try {
     const bearerHeader = req.headers.authorization;
@@ -1005,7 +1014,7 @@ export const addCancelledRequest = async (req: Request, res: Response) => {
     ) as jwt.JwtPayload;
     if (tokenVerify) {
       // Find the data in company
-      const { company_id } = req.body;
+      const { company_id, message } = req.body;
       let company = await CompanyModel.find({ _id: company_id });
       if (company.length !== 0) {
         const officer = await OfficerModel.find({ _id: tokenVerify.data });
@@ -1026,6 +1035,7 @@ export const addCancelledRequest = async (req: Request, res: Response) => {
         const cancleOfficer = {
           company_id: company_id,
           index: company[0].index,
+          message: message,
         };
         officer[0].cancelled_company.push(cancleOfficer);
 
@@ -1033,6 +1043,7 @@ export const addCancelledRequest = async (req: Request, res: Response) => {
         const cancleCompany = {
           officer_id: tokenVerify.data,
           index: officer[0].index,
+          message: message,
         };
         company[0].cancelled_officer.push(cancleCompany);
 
@@ -1080,57 +1091,129 @@ export const addSubscribedOfficerFromOfficer = async (
     if (tokenVerify) {
       // Find the Company
 
-      const { company_id } = req.body;
-      let company = await CompanyModel.find({
-        _id: company_id,
-      });
-      if (company.length !== 0) {
-        const officer = await OfficerModel.find({ _id: tokenVerify.data });
-        // remove from the request send by officer
-        officer[0].subscribe_request_from_company =
-          officer[0].subscribe_request_from_company.filter(
-            (obj) => obj.company_id !== company_id
-          );
+      const { company_id, message } = req.body;
+      // check the data came from frontend or not
+      if (!company_id || !message) {
+        // Error:
+        return res.status(400).json({ message: "Incomplete Data" });
+      } else {
+        let company = await CompanyModel.find({
+          _id: company_id,
+        });
+        if (company.length !== 0) {
+          const officer = await OfficerModel.find({ _id: tokenVerify.data });
+          // remove from the request send by officer
+          officer[0].subscribe_request_from_company =
+            officer[0].subscribe_request_from_company.filter(
+              (obj) => obj.company_id !== company_id
+            );
 
-        // remove from the officer from which the request has came
-        company[0].subscribe_request_to_officer =
-          company[0].subscribe_request_to_officer.filter(
-            (obj) => obj.officer_id !== tokenVerify.data
-          );
-        // add to the subscribedOfficer schema of company
-        const companyData = {
-          officer_id: tokenVerify.data,
-          index: officer[0].index,
-        };
-        company[0].subscribed_officer.push(companyData);
+          // remove from the officer from which the request has came
+          company[0].subscribe_request_to_officer =
+            company[0].subscribe_request_to_officer.filter(
+              (obj) => obj.officer_id !== tokenVerify.data
+            );
+          // add to the subscribedOfficer schema of company
+          const companyData = {
+            officer_id: tokenVerify.data,
+            index: officer[0].index,
+            access: [],
+            message: message,
+            selectedstudents: [],
+          };
+          company[0].subscribed_officer.push(companyData);
 
-        // add to the officer that requested to company
-        const officerData = {
-          company_id: company[0]._id,
-          index: company[0].index,
-          selectedstudents: [],
-        };
+          // add to the officer that requested to company
+          const officerData = {
+            company_id: company[0]._id,
+            index: company[0].index,
+            access: [],
+            message: message,
+            selectedstudents: [],
+          };
 
-        officer[0].subscribed_company.push(officerData);
+          officer[0].subscribed_company.push(officerData);
 
-        // save
-        const savedOfficer = await company[0].save();
-        const savedCompany = await officer[0].save();
+          // save
+          const savedOfficer = await company[0].save();
+          const savedCompany = await officer[0].save();
 
-        if (savedOfficer && savedCompany) {
-          // Success :
-          return res
-            .status(200)
-            .json({ message: "Successfully subscribed the company" });
+          if (savedOfficer && savedCompany) {
+            // Success :
+            return res
+              .status(200)
+              .json({ message: "Successfully subscribed the company" });
+          } else {
+            // Error:
+            return res
+              .status(500)
+              .json({ message: "Cannot subscribed the company" });
+          }
         } else {
           // Error:
-          return res
-            .status(500)
-            .json({ message: "Cannot subscribed the company" });
+          return res.status(400).json({ message: "Company does not exist" });
         }
-      } else {
+      }
+    } else {
+      // Error:
+      return res
+        .status(500)
+        .json({ message: "Problem in verifying the token" });
+    }
+  } catch (e) {
+    // Error:
+    return res.status(500).json({ message: "Server Error" });
+  }
+};
+
+export const giveAccessToCompanies = async (req: Request, res: Response) => {
+  try {
+    const bearerHeader = req.headers.authorization;
+    const bearer: string = bearerHeader as string;
+    const tokenVerify = jwt.verify(
+      bearer.split(" ")[1],
+      SecretKey
+    ) as jwt.JwtPayload;
+    if (tokenVerify) {
+      const officer_id = tokenVerify.data;
+      const { company_id, access } = req.body;
+      if (!company_id || !access) {
         // Error:
-        return res.status(400).json({ message: "Company does not exist" });
+        return res.status(400).json({ message: "Incomplete Data" });
+      } else {
+        // find both the officer and company
+        const foundOfficer = await OfficerModel.find({ _id: officer_id });
+        const foundCompany = await CompanyModel.find({ _id: company_id });
+
+        // if officer or company is not found
+        if (foundOfficer.length === 0 || foundCompany.length === 0) {
+          // Error:
+          return res
+            .status(400)
+            .json({ message: "given Officer or Company not found" });
+        } else {
+          // change the access details in both officer and company side
+          foundOfficer[0].subscribed_company.map((e) => {
+            if (e.company_id === company_id) {
+              e.access = access;
+            }
+          });
+
+          foundCompany[0].subscribed_officer.map((e) => {
+            if (e.officer_id === officer_id) {
+              e.access = access;
+            }
+          });
+
+          // save
+          const savedCompany = await foundCompany[0].save();
+          const savedOfficer = await foundOfficer[0].save();
+
+          // success: Access is given successfully
+          return res.status(200).json({
+            message: "Access is given successfully",
+          });
+        }
       }
     } else {
       // Error:

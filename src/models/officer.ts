@@ -1,8 +1,9 @@
 import { Schema, model, Document } from "mongoose";
+import { batchWiseDepartments, batchwiseDepartmentsInterface } from "./company";
 
 // Selected Students by Company Department wise student storing--
 
-export interface selectedStudentsDepartwise {
+export interface selectedStudentsDepartwiseInterface {
   student_id: string;
   index: number;
 }
@@ -14,8 +15,9 @@ export interface selectedStudentsDepartwise {
 export interface selectedStudents {
   department_name: string;
   year_batch: string;
-  date: Date;
-  selectedstudents: selectedStudentsDepartwise[];
+  start_date: Date;
+  end_date: Date;
+  selectedstudents: selectedStudentsDepartwiseInterface[];
 }
 
 // Selected Students by Company Interface --------------------------
@@ -25,6 +27,7 @@ export interface selectedStudents {
 export interface subscribeRequest {
   company_id: string;
   index: number;
+  message: string;
 }
 
 // ----------------------------------- subscribeRequest Interface
@@ -34,6 +37,8 @@ export interface subscribeRequest {
 export interface subscribedCompany {
   company_id: string;
   index: number;
+  message: string;
+  access: batchwiseDepartmentsInterface[];
   selectedstudents: selectedStudents[];
 }
 
@@ -44,6 +49,7 @@ export interface subscribedCompany {
 export interface cancelledCompany {
   company_id: string;
   index: number;
+  message: string;
 }
 
 // ----------------------------------- cancelledCompany Interface
@@ -110,7 +116,7 @@ export interface Officer extends Document {
 // Selected Students by Company Department wise student storing Schema
 
 export const selectedStudentsDepartwise =
-  new Schema<selectedStudentsDepartwise>({
+  new Schema<selectedStudentsDepartwiseInterface>({
     student_id: {
       type: String,
     },
@@ -130,7 +136,10 @@ export const selectedStudents = new Schema<selectedStudents>({
   year_batch: {
     type: String,
   },
-  date: {
+  start_date: {
+    type: Date,
+  },
+  end_date: {
     type: Date,
   },
   selectedstudents: {
@@ -149,6 +158,12 @@ export const subscribedCompany = new Schema<subscribedCompany>({
   index: {
     type: Number,
   },
+  access: {
+    type: [batchWiseDepartments],
+  },
+  message: {
+    type: String,
+  },
   selectedstudents: {
     type: [selectedStudents],
   },
@@ -165,6 +180,9 @@ export const subscribeRequestFromCompany = new Schema<subscribeRequest>({
   index: {
     type: Number,
   },
+  message: {
+    type: String,
+  },
 });
 
 // ----------------------------------- subscribeRequestFromCompany Schema
@@ -178,6 +196,9 @@ export const subscribeRequesttoCompany = new Schema<subscribeRequest>({
   index: {
     type: Number,
   },
+  message: {
+    type: String,
+  },
 });
 
 // ----------------------------------- subscribeRequestFromCompany Schema
@@ -190,6 +211,9 @@ export const cancelledCompany = new Schema<cancelledCompany>({
   },
   index: {
     type: Number,
+  },
+  message: {
+    type: String,
   },
 });
 
