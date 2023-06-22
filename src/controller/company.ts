@@ -1012,13 +1012,14 @@ export const getAllSubscribedOfficers = async (req: Request, res: Response) => {
         return res.status(400).json({ message: "Officer does not exist" });
       } else {
         const getAllSubscribedOfficers =
-          foundCompany.subscribe_request_to_officer;
+          foundCompany.subscribed_officer;
 
         if (getAllSubscribedOfficers.length === 0) {
           // No Requested Companies
           return res.status(200).json({ message: "Not any Request" });
         } else {
           // Success:
+        
           return res.status(200).json({
             message: "get All Requested Companies Successful",
             data: getAllSubscribedOfficers,
