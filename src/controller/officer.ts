@@ -1166,6 +1166,8 @@ export const addSubscribedOfficerFromOfficer = async (
 ) => {
   try {
     const bearerHeader = req.headers.authorization;
+    console.log(req.headers)
+    console.log(req.body)
     const bearer: string = bearerHeader as string;
     const tokenVerify = jwt.verify(
       bearer.split(" ")[1],
