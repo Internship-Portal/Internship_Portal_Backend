@@ -17,6 +17,7 @@ import {
   getAllCancelledRequests,
   getAllRequestsbyCompany,
   getAllRequestedOfficers,
+  getAllOfficerByFilter,
 } from "../controller/company";
 
 // Routes connected to the controllers companies function
@@ -31,19 +32,21 @@ router.post("/verifyCompanyToken", verifyCompanyByToken);
 router.post("/createCompany", createCompanyController);
 
 // Get One Company by Id
-router.get("/getOneCompany/:id", findCompanyController);
+router.get("/getOneCompany", findCompanyController);
 
 // Get All Companies
 router.get("/getAll", getAllCompanyController);
 
 // Delete Company by Id
-router.delete("/deleteCompany/:id", deleteCompanyController);
+router.delete("/deleteCompany", deleteCompanyController);
 
 // Send OTP to the email_id send
 router.post("/otpEmail", otpEmailSendController);
 
 // Set the new password by sending the token and new password
 router.post("/forgetPassword", forgetPasswordController);
+
+// Check the below routes
 
 // subscribe the officer
 router.post("/addSubscribeRequestToOfficer", addSubscribeRequestToOfficer);
@@ -68,5 +71,8 @@ router.get("/getAllRequestsbyCompany", getAllRequestsbyCompany);
 
 // get All Requested Officers
 router.get("/getAllRequestedOfficers", getAllRequestedOfficers);
+
+// get All Officers filtered with respect to AllSubscribedOfficers, AllRequestsbyCompany, AllRequestedOfficers
+router.get("/getAllFilteredOfficers", getAllOfficerByFilter);
 
 export default router;

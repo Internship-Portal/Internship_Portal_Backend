@@ -24,6 +24,7 @@ import {
   getAllRequestedCompanies,
   getAllSubscribedCompanies,
   getAllRequestsbyOfficer,
+  getAllCompanyByFilter,
   getAllCancelledRequests,
 } from "../controller/officer";
 
@@ -47,44 +48,42 @@ router.post("/verifyOfficerToken", verifyOfficerByToken);
 router.post("/createOfficer", createOfficerController);
 
 // Get One Officer by id
-router.get("/getOneOfficer/:id", findOfficerController);
+router.get("/getOneOfficer", findOfficerController);
 
 // Get All Officers
 router.get("/getAll", getAllOfficerController);
 
 // Delete Officer By ID
-router.delete("/deleteOfficer/:id", deleteOfficerController);
+router.delete("/deleteOfficer", deleteOfficerController);
 
 // Add Students details department wise, year_batch_wise
-router.put("/addCollegeDetails/:id", addDepartmentDetails);
+router.put("/addCollegeDetails", addDepartmentDetails);
 
 // Delete Students details department wise, year_batch_wise
-router.put("/removeCollegeDetails/:id", removeDepartmentDetails);
+router.put("/removeCollegeDetails", removeDepartmentDetails);
 
 // Add One Student Details manually
-router.put("/addOneStudentDetails/:id", addOneStudentDetails);
+router.put("/addOneStudentDetails", addOneStudentDetails);
 
 // Delete One Student Details manually
-router.put("/deleteOneStudentDetails/:id", deleteOneStudentDetails);
+router.put("/deleteOneStudentDetails", deleteOneStudentDetails);
 
 // Route to convert CSV To JSON
-router.post("/uploadCSVOfStudents/:id", convertStudentsCSVtoJSON);
+router.post("/uploadCSVOfStudents", convertStudentsCSVtoJSON);
 
 // Get All Departmant Details API
-router.get("/getDepartmentDetails/:id", getDepartmentDetails);
+router.get("/getDepartmentDetails", getDepartmentDetails);
 
 // get One Department Details API
-router.post(
-  "/getStudentDetails/:id",
-  upload.any(),
-  getStudentDetailsbyDeptAndYear
-);
+router.post("/getStudentDetails", upload.any(), getStudentDetailsbyDeptAndYear);
 
 // Send OTP to the email_id send
 router.post("/otpEmail", otpEmailSendController);
 
 // Set the new password by sending the token and new password
 router.post("/forgetPassword", forgetPasswordController);
+
+// Remanining Check the below routes
 
 // cancle request of company
 router.put("/addCancelledRequest", addCancelledRequest);
@@ -109,5 +108,8 @@ router.get("/getAllCancelledRequests", getAllCancelledRequests);
 
 // get All subscribed Companies
 router.get("/getAllSubscribedCompanies", getAllSubscribedCompanies);
+
+// get All Officers filtered with respect to AllSubscribedOfficers, AllRequestsbyCompany, AllRequestedOfficers
+router.get("/getAllCompanyByFilter", getAllCompanyByFilter);
 
 export default router;

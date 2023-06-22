@@ -33,12 +33,6 @@ const storage = multer({ dest: "uploads/" });
 // Set up multer upload middleware
 const upload = storage.single("csvFile");
 
-import {
-  createOfficer,
-  findOfficer,
-  deleteOfficer,
-  findAndUpdate,
-} from "../services/officer.service";
 import CompanyModel from "../models/company";
 
 // login Officer in the Backend Controller
@@ -56,23 +50,20 @@ export const loginOfficerController = async (req: Request, res: Response) => {
       password = password.trim();
 
       // finding an officer in database
-      const data = await OfficerModel.find({ email_id: email_id });
-      if (data.length !== 0) {
-        let foundOfficer = data[0];
+      const data = await OfficerModel.findOne({ email_id: email_id });
+      if (data) {
+        let foundOfficer = data;
         const hashedPassword = foundOfficer.password;
         // comparing the password.
         bcrypt.compare(password, hashedPassword).then((results) => {
           if (results) {
             // Converting the id and email
-            const token = jwt.sign(
-              { data: data[0]._id, email_id: email_id },
-              SecretKey
-            );
+            const token = jwt.sign({ data: data._id }, SecretKey);
 
             //Success: ogin Successful
             return res.status(200).send({
               message: "Login Successful",
-              data: data[0]._id,
+              data: data._id,
               token: token,
             });
           } else {
@@ -138,9 +129,9 @@ export const createOfficerController = async (req: Request, res: Response) => {
       // checking if the Officer already exists in database
       email_id = email_id.trim();
       password = password.trim();
-      const company = await CompanyModel.find({ email_id: email_id });
-      const officer = await OfficerModel.find({ email_id: email_id });
-      if (officer.length !== 0 || company.length !== 0) {
+      const company = await CompanyModel.findOne({ email_id: email_id });
+      const officer = await OfficerModel.findOne({ email_id: email_id });
+      if (officer || company) {
         //Error: If the data already exist
         return res.status(400).json({
           message: "Officer or Company already Exists with this email id",
@@ -166,7 +157,7 @@ export const createOfficerController = async (req: Request, res: Response) => {
           .hash(password, saltRounds)
           .then((hashedPassword) => {
             // finally creating and saving the officer
-            createOfficer({
+            OfficerModel.create({
               index: index,
               username: username,
               email_id: email_id,
@@ -209,26 +200,26 @@ export const findOfficerController = async (
     // verify the user
     const bearerHeader = req.headers.authorization;
     const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(bearer.split(" ")[1], SecretKey);
+    const tokenVerify = jwt.verify(
+      bearer.split(" ")[1],
+      SecretKey
+    ) as jwt.JwtPayload;
     if (tokenVerify) {
       // finding the officer by the ID got from the frontend
-      const filter = { _id: req.params.id };
-      let data = await findOfficer(filter);
+      // const filter = ;
+      let data = await OfficerModel.findById({ _id: tokenVerify.data }).select(
+        " -password"
+      );
 
       // checking if the officer exists or not
-      if (data.length === 0) {
+      if (!data) {
         //Error: Officer does not exist
         return res.status(404).json({ message: "Officer not found" });
       } else {
-        const officer = data[0];
-
-        // omiting the college details from officer
-        const { college_details, password, ...responseData } = officer;
-
         // Success: pass the data
         return res.status(200).json({
           message: "This is Officer findone Page",
-          data: responseData,
+          data: data,
         });
       }
     } else {
@@ -288,11 +279,15 @@ export const deleteOfficerController = async (
   try {
     const bearerHeader = req.headers.authorization;
     const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(bearer.split(" ")[1], SecretKey);
+    const tokenVerify = jwt.verify(
+      bearer.split(" ")[1],
+      SecretKey
+    ) as jwt.JwtPayload;
     if (tokenVerify) {
-      const filter = { _id: req.params.id };
       // check for the data and delete
-      let data = await deleteOfficer(filter);
+      let data = await OfficerModel.findByIdAndDelete({
+        _id: tokenVerify.data,
+      });
       if (data !== null) {
         // Success: Data Found
         return res.status(200).json({
@@ -377,16 +372,18 @@ export const otpEmailSendController = async (req: Request, res: Response) => {
   try {
     // Find the data and generate OTP
     const OTP = Math.floor(Math.random() * 9000 + 1000);
-    const findUser = await OfficerModel.find({ email_id: req.body.email_id });
+    const findUser = await OfficerModel.findOne({
+      email_id: req.body.email_id,
+    });
 
-    if (findUser.length !== 0) {
+    if (findUser) {
       // Creating the token using OTP and email_id
       const token = jwt.sign(
         { OTP: OTP, email_id: req.body.email_id },
         SecretKey
       );
       // Send Mail Function
-      sendEmail(req, OTP, findUser[0].username)
+      sendEmail(req, OTP, findUser.username)
         .then((response) => {
           // Success: message and token for forget password
           res.status(200).json({ message: response, token: token });
@@ -416,13 +413,13 @@ export const forgetPasswordController = async (req: Request, res: Response) => {
       ) as jwt.JwtPayload;
       if (password && email_id && tokenVerify.email_id === email_id) {
         // find the user in database
-        const findUser = await OfficerModel.find({ email_id: email_id });
-        if (findUser.length !== 0) {
+        const findUser = await OfficerModel.findOne({ email_id: email_id });
+        if (findUser) {
           // Password Hashing using bcrypt.
           const saltRounds = 10;
           bcrypt.hash(password, saltRounds).then(async (hashedPassword) => {
-            findUser[0].password = hashedPassword;
-            const passwordSet = await findUser[0].save();
+            findUser.password = hashedPassword;
+            const passwordSet = await findUser.save();
             if (passwordSet) {
               //Success: if password is set successfully
               return res
@@ -461,21 +458,24 @@ export const getDepartmentDetails = async (req: Request, res: Response) => {
     // verify the user
     const bearerHeader = req.headers.authorization;
     const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(bearer.split(" ")[1], SecretKey);
+    const tokenVerify = jwt.verify(
+      bearer.split(" ")[1],
+      SecretKey
+    ) as jwt.JwtPayload;
     if (tokenVerify) {
-      // if data does not exists
-      if (!req.params.id) {
-        return res.status(400).json({ message: "Email not found" });
-      }
-
       // Searching for the id passed in params
-      const data = await OfficerModel.find({ _id: req.params.id });
-      const sendData = data[0].college_details;
+      const data = await OfficerModel.findById({ _id: tokenVerify.data });
+      if (!data) {
+        // Error: officer not found
+        return res.status(404).json({ message: "Officer not found" });
+      } else {
+        const sendData = data.college_details;
 
-      // Success: details
-      return res
-        .status(200)
-        .json({ message: "This is getDepartmentDetails", data: sendData });
+        // Success: details
+        return res
+          .status(200)
+          .json({ message: "This is getDepartmentDetails", data: sendData });
+      }
     } else {
       // Error:
       return res
@@ -499,10 +499,13 @@ export const addDepartmentDetails = async (
     // verify the user
     const bearerHeader = req.headers.authorization;
     const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(bearer.split(" ")[1], SecretKey);
+    const tokenVerify = jwt.verify(
+      bearer.split(" ")[1],
+      SecretKey
+    ) as jwt.JwtPayload;
     if (tokenVerify) {
       // Find the officer by id
-      const filter = { _id: req.params.id };
+      const filter = { _id: tokenVerify.data };
       const findDepartment = await OfficerModel.findById(filter);
       if (findDepartment?.college_details.length !== 0) {
         // Check if findDepartment or college_details is undefined
@@ -530,7 +533,7 @@ export const addDepartmentDetails = async (
         e.year_batch = yearBatch;
       });
 
-      let data = await findAndUpdate(
+      let data = await OfficerModel.findOneAndUpdate(
         filter,
         { $push: { college_details: req.body.college_details } },
         { new: true }
@@ -538,7 +541,6 @@ export const addDepartmentDetails = async (
       // Success: Add the Department Details page
       return res.status(200).json({
         message: "This is Officer addDepartmentDetails page",
-        data: data,
       });
     } else {
       // Error:
@@ -558,37 +560,58 @@ export const removeDepartmentDetails = async (
   res: Response
 ): Promise<Response<any, Record<string, any>>> => {
   try {
-    // verify the user
+    // Verify the user
     const bearerHeader = req.headers.authorization;
     const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(bearer.split(" ")[1], SecretKey);
+    const tokenVerify = jwt.verify(
+      bearer.split(" ")[1],
+      SecretKey
+    ) as jwt.JwtPayload;
+
     if (tokenVerify) {
-      // Find and delete the departments by their id
-      const filter = { _id: req.params.id };
+      // Find and delete the department by its id
       const departmentDetailsId = req.body.department_id;
-      let data = await findAndUpdate(
-        filter,
-        { $pull: { college_details: { _id: departmentDetailsId } } },
-        { new: true }
+      const officer = await OfficerModel.findById(tokenVerify.data);
+
+      if (!officer) {
+        // Officer not found
+        return res.status(404).json({ message: "Officer not found" });
+      }
+
+      const departmentIndex = officer.college_details.findIndex(
+        (e: Department) => e._id == departmentDetailsId
       );
-      if (data !== null) {
-        // Success: send the data
-        return res.status(200).json({
-          message: "This is Officer Delete Page",
-          data: data,
-        });
+
+      if (departmentIndex !== -1) {
+        // Remove the department from officer's college_details
+        officer.college_details.splice(departmentIndex, 1);
+
+        // Save the updated officer
+        const savedOfficer = await officer.save();
+
+        if (savedOfficer) {
+          // Success: Department removed
+          return res.status(200).json({
+            message: "Department removed successfully",
+          });
+        } else {
+          // Error: Failed to save the officer
+          return res
+            .status(500)
+            .json({ message: "Failed to save the officer" });
+        }
       } else {
-        // Error:
-        return res.status(400).json({ message: "Cannot find Officer" });
+        // Error: Department not found in officer's college_details
+        return res.status(400).json({ message: "Department not found" });
       }
     } else {
-      // Error:
+      // Error: Problem in verifying the token
       return res
         .status(500)
         .json({ message: "Problem in verifying the token" });
     }
   } catch (e) {
-    // Error:
+    // Error: Server Error
     return res.status(500).json({ message: "Server Error" });
   }
 };
@@ -597,13 +620,17 @@ export const addOneStudentDetails = async (req: Request, res: Response) => {
   try {
     const bearerHeader = req.headers.authorization;
     const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(bearer.split(" ")[1], SecretKey);
+    const tokenVerify = jwt.verify(
+      bearer.split(" ")[1],
+      SecretKey
+    ) as jwt.JwtPayload;
     if (tokenVerify) {
-      const officerId: string = req.params.id;
       let newStudentDetails: Students = req.body;
 
       // Find Officer
-      const officer: Officer | null = await OfficerModel.findById(officerId);
+      const officer: Officer | null = await OfficerModel.findById({
+        _id: tokenVerify.data,
+      });
 
       if (!officer) {
         // Error:
@@ -660,7 +687,6 @@ export const addOneStudentDetails = async (req: Request, res: Response) => {
           // Success:
           return res.status(200).json({
             message: "One Student details added successfully",
-            data: officer,
           });
         }
       }
@@ -685,13 +711,17 @@ export const deleteOneStudentDetails = async (req: Request, res: Response) => {
     // verify the user
     const bearerHeader = req.headers.authorization;
     const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(bearer.split(" ")[1], SecretKey);
+    const tokenVerify = jwt.verify(
+      bearer.split(" ")[1],
+      SecretKey
+    ) as jwt.JwtPayload;
     if (tokenVerify) {
       // Find the officer
-      const officerId: string = req.params.id;
       const departmentName: string = req.body.branch;
       const departmentYearBatch: number = req.body.year_batch;
-      const officer: Officer | null = await OfficerModel.findById(officerId);
+      const officer: Officer | null = await OfficerModel.findById({
+        _id: tokenVerify.data,
+      });
 
       if (!officer) {
         // Error:
@@ -754,7 +784,6 @@ export const deleteOneStudentDetails = async (req: Request, res: Response) => {
       // Success
       return res.json({
         message: "One student details deleted successfully",
-        data: officer,
       });
     } else {
       // Error:
@@ -778,10 +807,14 @@ export const convertStudentsCSVtoJSON = async (req: Request, res: Response) => {
     // verify the user
     const bearerHeader = req.headers.authorization;
     const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(bearer.split(" ")[1], SecretKey);
+    const tokenVerify = jwt.verify(
+      bearer.split(" ")[1],
+      SecretKey
+    ) as jwt.JwtPayload;
     if (tokenVerify) {
-      const officerId: string = req.params.id;
-      const officer: Officer | null = await OfficerModel.findById(officerId);
+      const officer: Officer | null = await OfficerModel.findById({
+        _id: tokenVerify.data,
+      });
       let departmentFound = false;
 
       // Checking for the officer details in database
@@ -861,7 +894,6 @@ export const convertStudentsCSVtoJSON = async (req: Request, res: Response) => {
             // Success:
             return res.status(200).json({
               message: "CSV details added successfully",
-              data: officer,
             });
           }
         }
@@ -890,39 +922,46 @@ export const getStudentDetailsbyDeptAndYear = async (
     // verify the user
     const bearerHeader = req.headers.authorization;
     const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(bearer.split(" ")[1], SecretKey);
+    const tokenVerify = jwt.verify(
+      bearer.split(" ")[1],
+      SecretKey
+    ) as jwt.JwtPayload;
     if (tokenVerify) {
       let { department_name, year_batch } = req.body;
-      let id = req.params.id;
+      let id = tokenVerify.data;
       if (!department_name || !year_batch || !id) {
         // Error:
         return res.status(400).json({ error: "Incomplete Data" });
       }
 
-      const data = await OfficerModel.find({ _id: id });
-
-      // bool for data bot found
-      let sendData = false;
-      data[0].college_details.map((e) => {
-        if (
-          e.department_name === department_name &&
-          e.year_batch == year_batch
-        ) {
-          //Success: if we both the department and year_batch
-          sendData = true;
-
-          return res.status(200).json({
-            message: "This is get Students details by dept and year API",
-            data: e,
-          });
-        }
-      });
-      // if the department does not exist in officer details.
-      if (!sendData) {
+      const data = await OfficerModel.findById({ _id: id });
+      if (!data) {
         // Error:
-        return res
-          .status(400)
-          .json({ message: "Department not exist in officer details." });
+        return res.status(400).json({ error: "Officer not found" });
+      } else {
+        // bool for data bot found
+        let sendData = false;
+        data.college_details.map((e) => {
+          if (
+            e.department_name === department_name &&
+            e.year_batch == year_batch
+          ) {
+            //Success: if we both the department and year_batch
+            sendData = true;
+
+            return res.status(200).json({
+              message: "This is get Students details by dept and year API",
+              data: e,
+            });
+          }
+        });
+        // if the department does not exist in officer details.
+        if (!sendData) {
+          // Error:
+          return res
+            .status(400)
+            .json({ message: "Department not exist in officer details." });
+        }
       }
     } else {
       // Error:
@@ -957,49 +996,82 @@ export const addSubscribeRequestToCompany = async (
         return res.status(400).json({ message: "Incomplete Data" });
       } else {
         // Find Officer and Company in both
-        let officerData = await OfficerModel.find({ _id: tokenVerify.data });
-        let companydata = await CompanyModel.find({ _id: _id });
-        if (companydata.length !== 0) {
-          const dataCompany = {
-            officer_id: officerData[0]._id,
-            index: officerData[0].index,
-            message: message,
-            college_name: officerData[0].college_name,
-            username: officerData[0].username,
-          };
-          const dataOfficer = {
-            company_id: companydata[0]._id,
-            index: companydata[0].index,
-            message: message,
-            username: companydata[0].username,
-            company_name: companydata[0].company_name,
-          };
+        const officerData = await OfficerModel.findById({
+          _id: tokenVerify.data,
+        });
+        const companydata = await CompanyModel.findById({ _id: _id });
+        if (companydata && officerData) {
+          // check if the company is already requested subscription or not
 
-          // push the data in company in subscribe_request_from_officer
-          companydata[0].subscribe_request_from_officer.push(dataCompany);
+          const foundInRequestToCompany =
+            officerData.subscribe_request_to_company.some(
+              (e) => e.company_id === _id
+            );
 
-          // push the data in officer in subscribe_request_to_company
-          officerData[0].subscribe_request_to_company.push(dataOfficer);
+          const foundInRequestFromCompany =
+            officerData.subscribe_request_from_company.some(
+              (e) => e.company_id === _id
+            );
 
-          // save
-          const savedCompany = await companydata[0].save();
-          const savedOfficer = await officerData[0].save();
+          const foundInSubscribedCompanies =
+            officerData.subscribed_company.some((e) => e.company_id === _id);
 
-          if (savedCompany && savedOfficer) {
-            // successfully saved the data
-            return res.status(200).json({ message: "Request Send" });
+          if (
+            foundInRequestToCompany === false &&
+            foundInRequestFromCompany === false &&
+            foundInSubscribedCompanies === false
+          ) {
+            const dataCompany = {
+              officer_id: officerData._id,
+              index: officerData.index,
+              message: message,
+              college_name: officerData.college_name,
+              username: officerData.username,
+            };
+            const dataOfficer = {
+              company_id: companydata._id,
+              index: companydata.index,
+              message: message,
+              username: companydata.username,
+              company_name: companydata.company_name,
+            };
+
+            // push the data in company in subscribe_request_from_officer
+            companydata.subscribe_request_from_officer.push(dataCompany);
+
+            // push the data in officer in subscribe_request_to_company
+            officerData.subscribe_request_to_company.push(dataOfficer);
+
+            // save
+            const savedCompany = await companydata.save();
+            const savedOfficer = await officerData.save();
+
+            if (savedCompany && savedOfficer) {
+              // successfully saved the data
+              return res.status(200).json({ message: "Request Sent" });
+            } else {
+              // Error:
+              return res
+                .status(400)
+                .json({ message: "Request cannot be sent" });
+            }
           } else {
             // Error:
-            return res.status(400).json({ message: "Request cannot send" });
+            return res.status(400).json({
+              message:
+                "Already requested to subscribe or already subscribed the company",
+            });
           }
         } else {
           // Error:
-          return res.status(400).json({ message: "Company does not exist" });
+          return res
+            .status(400)
+            .json({ message: "Company or officer does not exist" });
         }
       }
     } else {
       // Error:
-      return res.status(400).json({ message: "Officer does not exist" });
+      return res.status(400).json({ message: "Token not found" });
     }
   } catch (e) {
     // Error:
@@ -1019,54 +1091,58 @@ export const addCancelledRequest = async (req: Request, res: Response) => {
     if (tokenVerify) {
       // Find the data in company
       const { company_id, message } = req.body;
-      let company = await CompanyModel.find({ _id: company_id });
-      if (company.length !== 0) {
-        const officer = await OfficerModel.find({ _id: tokenVerify.data });
+      const company = await CompanyModel.findById({ _id: company_id });
+      if (company) {
+        const officer = await OfficerModel.findById({ _id: tokenVerify.data });
+        if (officer) {
+          // remove the requested data from officer
+          officer.subscribe_request_from_company =
+            officer.subscribe_request_from_company.filter(
+              (obj) => obj.company_id !== company_id
+            );
 
-        // remove the requested data from officer
-        officer[0].subscribe_request_from_company =
-          officer[0].subscribe_request_from_company.filter(
-            (obj) => obj.company_id !== company_id
-          );
+          // remove the requested data from company
+          company.subscribe_request_to_officer =
+            company.subscribe_request_to_officer.filter(
+              (obj) => obj.officer_id !== tokenVerify.data
+            );
 
-        // remove the requested data from company
-        company[0].subscribe_request_to_officer =
-          company[0].subscribe_request_to_officer.filter(
-            (obj) => obj.officer_id !== tokenVerify.data
-          );
+          // add cancelled requested data to the officer
+          const cancelOfficer = {
+            company_id: company_id,
+            index: company.index,
+            message: message,
+            username: company.username,
+            company_name: company.company_name,
+          };
+          officer.cancelled_company.push(cancelOfficer);
 
-        // add cancelled requested data to the officer
-        const cancleOfficer = {
-          company_id: company_id,
-          index: company[0].index,
-          message: message,
-          username: company[0].username,
-          company_name: company[0].company_name,
-        };
-        officer[0].cancelled_company.push(cancleOfficer);
+          // add cancelled requested data to the company
+          const cancelCompany = {
+            officer_id: tokenVerify.data,
+            index: officer.index,
+            message: message,
+            college_name: officer.college_name,
+            username: officer.username,
+          };
+          company.cancelled_officer.push(cancelCompany);
 
-        // add cancelled requested data to the company
-        const cancleCompany = {
-          officer_id: tokenVerify.data,
-          index: officer[0].index,
-          message: message,
-          college_name: officer[0].college_name,
-          username: officer[0].username,
-        };
-        company[0].cancelled_officer.push(cancleCompany);
+          // save
+          const savedCompany = await company.save();
+          const savedOfficer = await officer.save();
 
-        // save
-        const savedCompany = await company[0].save();
-        const savedOfficer = await officer[0].save();
-
-        if (savedCompany && savedOfficer) {
-          // Success :
-          return res.status(200).json({
-            message: "Cancelled the company request",
-          });
+          if (savedCompany && savedOfficer) {
+            // Success :
+            return res.status(200).json({
+              message: "Cancelled the company request",
+            });
+          } else {
+            // Error:
+            return res.status(500).json({ message: "Cannot cancel request" });
+          }
         } else {
           // Error:
-          return res.status(500).json({ message: "Cannot cancle request" });
+          return res.status(404).json({ message: "Officer not found" });
         }
       } else {
         // Error:
@@ -1084,7 +1160,6 @@ export const addCancelledRequest = async (req: Request, res: Response) => {
   }
 };
 
-// Add subscribed Officer
 export const addSubscribedOfficerFromOfficer = async (
   req: Request,
   res: Response
@@ -1098,72 +1173,87 @@ export const addSubscribedOfficerFromOfficer = async (
     ) as jwt.JwtPayload;
     if (tokenVerify) {
       // Find the Company
-
       const { company_id, message } = req.body;
       // check the data came from frontend or not
       if (!company_id || !message) {
         // Error:
         return res.status(400).json({ message: "Incomplete Data" });
       } else {
-        let company = await CompanyModel.find({
+        const company = await CompanyModel.findById({
           _id: company_id,
         });
-        if (company.length !== 0) {
-          const officer = await OfficerModel.find({ _id: tokenVerify.data });
-          // remove from the request send by officer
-          officer[0].subscribe_request_from_company =
-            officer[0].subscribe_request_from_company.filter(
-              (obj) => obj.company_id !== company_id
+        if (company) {
+          const officer = await OfficerModel.findById({
+            _id: tokenVerify.data,
+          });
+          if (officer) {
+            // Check if the subscriber already exists
+
+            const foundInSubscribedCompanies = officer.subscribed_company.some(
+              (e) => e.company_id === company_id
             );
 
-          // remove from the officer from which the request has came
-          company[0].subscribe_request_to_officer =
-            company[0].subscribe_request_to_officer.filter(
-              (obj) => obj.officer_id !== tokenVerify.data
-            );
-          // add to the subscribedOfficer schema of company
-          const companyData = {
-            officer_id: tokenVerify.data,
-            index: officer[0].index,
-            access: [],
-            college_name: officer[0].college_name,
-            username: officer[0].username,
-            message: message,
-            selectedstudents: [],
-          };
-          company[0].subscribed_officer.push(companyData);
+            if (foundInSubscribedCompanies === false) {
+              // remove from the request send by officer
+              officer.subscribe_request_from_company =
+                officer.subscribe_request_from_company.filter(
+                  (obj) => obj.company_id !== company_id
+                );
 
-          // add to the officer that requested to company
-          const officerData = {
-            company_id: company[0]._id,
-            index: company[0].index,
-            access: [],
-            username: company[0].username,
-            company_name: company[0].company_name,
-            message: message,
-            selectedstudents: [],
-          };
+              // remove from the officer from which the request has come
+              company.subscribe_request_to_officer =
+                company.subscribe_request_to_officer.filter(
+                  (obj) => obj.officer_id !== tokenVerify.data
+                );
 
-          officer[0].subscribed_company.push(officerData);
+              // add to the subscribedOfficer schema of company
+              const companyData = {
+                officer_id: tokenVerify.data,
+                index: officer.index,
+                access: [],
+                college_name: officer.college_name,
+                username: officer.username,
+                message: message,
+                selectedstudents: [],
+              };
+              company.subscribed_officer.push(companyData);
 
-          // save
-          const savedOfficer = await company[0].save();
-          const savedCompany = await officer[0].save();
+              // add to the officer that requested to company
+              const officerData = {
+                company_id: company._id,
+                index: company.index,
+                access: [],
+                username: company.username,
+                company_name: company.company_name,
+                message: message,
+                selectedstudents: [],
+              };
 
-          if (savedOfficer && savedCompany) {
-            // Success :
-            return res
-              .status(200)
-              .json({ message: "Successfully subscribed the company" });
+              officer.subscribed_company.push(officerData);
+
+              // save
+              const savedOfficer = await officer.save();
+              const savedCompany = await company.save();
+
+              if (savedOfficer && savedCompany) {
+                // Success :
+                return res
+                  .status(200)
+                  .json({ message: "Successfully subscribed to the company" });
+              } else {
+                // Error:
+                return res
+                  .status(500)
+                  .json({ message: "Failed to subscribe to the company" });
+              }
+            }
           } else {
             // Error:
-            return res
-              .status(500)
-              .json({ message: "Cannot subscribed the company" });
+            return res.status(404).json({ message: "Officer not found" });
           }
         } else {
           // Error:
-          return res.status(400).json({ message: "Company does not exist" });
+          return res.status(400).json({ message: "Company not found" });
         }
       }
     } else {
@@ -1194,32 +1284,32 @@ export const giveAccessToCompanies = async (req: Request, res: Response) => {
         return res.status(400).json({ message: "Incomplete Data" });
       } else {
         // find both the officer and company
-        const foundOfficer = await OfficerModel.find({ _id: officer_id });
-        const foundCompany = await CompanyModel.find({ _id: company_id });
+        const foundOfficer = await OfficerModel.findById({ _id: officer_id });
+        const foundCompany = await CompanyModel.findById({ _id: company_id });
 
         // if officer or company is not found
-        if (foundOfficer.length === 0 || foundCompany.length === 0) {
+        if (!foundOfficer || !foundCompany) {
           // Error:
           return res
             .status(400)
             .json({ message: "given Officer or Company not found" });
         } else {
           // change the access details in both officer and company side
-          foundOfficer[0].subscribed_company.map((e) => {
+          foundOfficer.subscribed_company.map((e) => {
             if (e.company_id === company_id) {
               e.access = access;
             }
           });
 
-          foundCompany[0].subscribed_officer.map((e) => {
+          foundCompany.subscribed_officer.map((e) => {
             if (e.officer_id === officer_id) {
               e.access = access;
             }
           });
 
           // save
-          const savedCompany = await foundCompany[0].save();
-          const savedOfficer = await foundOfficer[0].save();
+          const savedCompany = await foundCompany.save();
+          const savedOfficer = await foundOfficer.save();
 
           // success: Access is given successfully
           return res.status(200).json({
@@ -1248,14 +1338,16 @@ export const getAllRequestedCompanies = async (req: Request, res: Response) => {
       SecretKey
     ) as jwt.JwtPayload;
     if (tokenVerify) {
-      const foundOfficer = await OfficerModel.find({ _id: tokenVerify.data });
+      const foundOfficer = await OfficerModel.findById({
+        _id: tokenVerify.data,
+      });
 
-      if (foundOfficer.length === 0) {
+      if (!foundOfficer) {
         // Error:
         return res.status(400).json({ message: "Officer does not exist" });
       } else {
         const allRequestedCompanies =
-          foundOfficer[0].subscribe_request_from_company;
+          foundOfficer.subscribe_request_from_company;
 
         if (allRequestedCompanies.length === 0) {
           // No Requested Companies
@@ -1289,14 +1381,15 @@ export const getAllRequestsbyOfficer = async (req: Request, res: Response) => {
       SecretKey
     ) as jwt.JwtPayload;
     if (tokenVerify) {
-      const foundOfficer = await OfficerModel.find({ _id: tokenVerify.data });
+      const foundOfficer = await OfficerModel.findById({
+        _id: tokenVerify.data,
+      });
 
-      if (foundOfficer.length === 0) {
+      if (!foundOfficer) {
         // Error:
         return res.status(400).json({ message: "Officer does not exist" });
       } else {
-        const allRequestedbyOfficer =
-          foundOfficer[0].subscribe_request_to_company;
+        const allRequestedbyOfficer = foundOfficer.subscribe_request_to_company;
 
         if (allRequestedbyOfficer.length === 0) {
           // No Requested Companies
@@ -1333,13 +1426,15 @@ export const getAllSubscribedCompanies = async (
       SecretKey
     ) as jwt.JwtPayload;
     if (tokenVerify) {
-      const foundOfficer = await OfficerModel.find({ _id: tokenVerify.data });
+      const foundOfficer = await OfficerModel.findById({
+        _id: tokenVerify.data,
+      });
 
-      if (foundOfficer.length === 0) {
+      if (!foundOfficer) {
         // Error:
         return res.status(400).json({ message: "Officer does not exist" });
       } else {
-        const subscribedcompanies = foundOfficer[0].subscribed_company;
+        const subscribedcompanies = foundOfficer.subscribed_company;
 
         if (subscribedcompanies.length === 0) {
           // No Requested Companies
@@ -1373,13 +1468,15 @@ export const getAllCancelledRequests = async (req: Request, res: Response) => {
       SecretKey
     ) as jwt.JwtPayload;
     if (tokenVerify) {
-      const foundOfficer = await OfficerModel.find({ _id: tokenVerify.data });
+      const foundOfficer = await OfficerModel.findById({
+        _id: tokenVerify.data,
+      });
 
-      if (foundOfficer.length === 0) {
+      if (!foundOfficer) {
         // Error:
         return res.status(400).json({ message: "Officer does not exist" });
       } else {
-        const allCancelledCompanies = foundOfficer[0].cancelled_company;
+        const allCancelledCompanies = foundOfficer.cancelled_company;
 
         if (allCancelledCompanies.length === 0) {
           // No Requested Companies
@@ -1403,5 +1500,69 @@ export const getAllCancelledRequests = async (req: Request, res: Response) => {
   } catch (e) {
     // Error:
     return res.status(500).json({ message: "Server Error" });
+  }
+};
+
+export const getAllCompanyByFilter = async (req: Request, res: Response) => {
+  try {
+    const bearerHeader = req.headers.authorization;
+    const bearer: string = bearerHeader as string;
+    const tokenVerify = jwt.verify(
+      bearer.split(" ")[1],
+      SecretKey
+    ) as jwt.JwtPayload;
+    if (tokenVerify) {
+      const companies = await CompanyModel.find({})
+        .select(
+          "-subscribe_request_from_officer -subscribe_request_to_officer -subscribed_officer "
+        )
+        .exec();
+
+      // Assuming you have retrieved the company data
+      const officerData = await OfficerModel.findById({
+        _id: tokenVerify.data,
+      })
+        .populate("subscribe_request_from_company")
+        .populate("subscribe_request_to_company")
+        .populate("subscribed_company")
+        .exec();
+
+      if (!officerData) {
+        return res.status(404).json({ message: "Company data not found." });
+      }
+
+      // Remove officers present in company data
+      const filteredCompanies = companies.filter((company) => {
+        const companyId = company._id.toString();
+        const isSubscribeRequestFromCompanies =
+          officerData.subscribe_request_from_company.some(
+            (req) => req.company_id.toString() === companyId
+          );
+        const isSubscribeRequestToCompanies =
+          officerData.subscribe_request_to_company.some(
+            (req) => req.company_id.toString() === companyId
+          );
+        const isSubscribedCompanies = officerData.subscribed_company.some(
+          (sub) => sub.company_id.toString() === companyId
+        );
+
+        return !(
+          isSubscribeRequestFromCompanies ||
+          isSubscribeRequestToCompanies ||
+          isSubscribedCompanies
+        );
+      });
+
+      return res
+        .status(200)
+        .json({ message: "Filtered Companies", data: filteredCompanies });
+    } else {
+      // Error:
+      return res
+        .status(500)
+        .json({ message: "Problem in verifying the token" });
+    }
+  } catch (error) {
+    return res.status(500).json("Error retrieving officers: " + error);
   }
 };

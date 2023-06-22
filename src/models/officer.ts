@@ -1,4 +1,4 @@
-import { Schema, model, Document } from "mongoose";
+import { Schema, model, Document, ObjectId } from "mongoose";
 import { batchWiseDepartments, batchwiseDepartmentsInterface } from "./company";
 
 // Selected Students by Company Department wise student storing--
@@ -94,6 +94,7 @@ export interface Students {
 // ----------------------------------------- Department Interface
 
 export interface Department {
+  _id?: ObjectId;
   department_name: string;
   year_batch: number;
   student_details: Students[];
