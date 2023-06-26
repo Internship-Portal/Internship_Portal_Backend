@@ -1,23 +1,14 @@
 import { Schema, model, Document, ObjectId } from "mongoose";
 import { batchWiseDepartments, batchwiseDepartmentsInterface } from "./company";
 
-// Selected Students by Company Department wise student storing--
-
-export interface selectedStudentsDepartwiseInterface {
-  student_id: string;
-  index: number;
-}
-
-// Selected Students by Company Department wise student storing--
-
 // Selected Students by Company Interface --------------------------
 
-export interface selectedStudents {
+export interface selectedStudentsInterface {
   department_name: string;
-  year_batch: string;
-  start_date: Date;
-  end_date: Date;
-  selectedstudents: selectedStudentsDepartwiseInterface[];
+  year_batch: number;
+  start_date: Date | null;
+  end_date: Date | null;
+  studentsdetails: Students[];
 }
 
 // Selected Students by Company Interface --------------------------
@@ -43,7 +34,7 @@ export interface subscribedCompany {
   username: string;
   company_name: string;
   access: batchwiseDepartmentsInterface[];
-  selectedstudents: selectedStudents[];
+  selectedstudents: selectedStudentsInterface[];
 }
 
 // ----------------------------------- subscribedCompany Interface
@@ -119,137 +110,6 @@ export interface Officer extends Document {
 }
 
 // -------------------------------------------- Officer Interface
-
-// Selected Students by Company Department wise student storing Schema
-
-export const selectedStudentsDepartwise =
-  new Schema<selectedStudentsDepartwiseInterface>({
-    student_id: {
-      type: String,
-    },
-    index: {
-      type: Number,
-    },
-  });
-
-// Selected Students by Company Department wise student storing Schema
-
-// Selected Students by Company Schema --------------------------
-
-export const selectedStudents = new Schema<selectedStudents>({
-  department_name: {
-    type: String,
-  },
-  year_batch: {
-    type: String,
-  },
-  start_date: {
-    type: Date,
-  },
-  end_date: {
-    type: Date,
-  },
-
-  selectedstudents: {
-    type: [selectedStudentsDepartwise],
-  },
-});
-
-// Selected Students by Company Schema --------------------------
-
-// ----------------------------------- subscribedCompany Schema
-
-export const subscribedCompany = new Schema<subscribedCompany>({
-  company_id: {
-    type: String,
-  },
-  index: {
-    type: Number,
-  },
-  access: {
-    type: [batchWiseDepartments],
-  },
-  message: {
-    type: String,
-  },
-  username: {
-    type: String,
-  },
-  company_name: {
-    type: String,
-  },
-  selectedstudents: {
-    type: [selectedStudents],
-  },
-});
-
-// ----------------------------------- subscribedCompany Schema
-
-// ----------------------------------- subscribeRequestFromCompany Schema
-
-export const subscribeRequestFromCompany = new Schema<subscribeRequest>({
-  company_id: {
-    type: String,
-  },
-  index: {
-    type: Number,
-  },
-  message: {
-    type: String,
-  },
-  username: {
-    type: String,
-  },
-  company_name: {
-    type: String,
-  },
-});
-
-// ----------------------------------- subscribeRequestFromCompany Schema
-
-// ----------------------------------- subscribeRequestFromCompany Schema
-
-export const subscribeRequesttoCompany = new Schema<subscribeRequest>({
-  company_id: {
-    type: String,
-  },
-  index: {
-    type: Number,
-  },
-  message: {
-    type: String,
-  },
-  username: {
-    type: String,
-  },
-  company_name: {
-    type: String,
-  },
-});
-
-// ----------------------------------- subscribeRequestFromCompany Schema
-
-// ----------------------------------- cancelledCompany Schema
-
-export const cancelledCompany = new Schema<cancelledCompany>({
-  company_id: {
-    type: String,
-  },
-  index: {
-    type: Number,
-  },
-  message: {
-    type: String,
-  },
-  username: {
-    type: String,
-  },
-  company_name: {
-    type: String,
-  },
-});
-
-// ----------------------------------- cancelledCompany Schema
 
 // --------------------------------------------- Student Schema
 
@@ -352,6 +212,122 @@ StudentsSchema.path("Internship_status").set(function (
 });
 
 // ----------------------------------------------- Student Schema
+
+// Selected Students by Company Schema --------------------------
+
+export const selectedStudents = new Schema<selectedStudentsInterface>({
+  department_name: {
+    type: String,
+  },
+  year_batch: {
+    type: Number,
+  },
+  start_date: {
+    type: Date,
+  },
+  end_date: {
+    type: Date,
+  },
+  studentsdetails: {
+    type: [StudentsSchema],
+  },
+});
+
+// Selected Students by Company Schema --------------------------
+
+// ----------------------------------- subscribedCompany Schema
+
+export const subscribedCompany = new Schema<subscribedCompany>({
+  company_id: {
+    type: String,
+  },
+  index: {
+    type: Number,
+  },
+  access: {
+    type: [batchWiseDepartments],
+  },
+  message: {
+    type: String,
+  },
+  username: {
+    type: String,
+  },
+  company_name: {
+    type: String,
+  },
+  selectedstudents: {
+    type: [selectedStudents],
+  },
+});
+
+// ----------------------------------- subscribedCompany Schema
+
+// ----------------------------------- subscribeRequestFromCompany Schema
+
+export const subscribeRequestFromCompany = new Schema<subscribeRequest>({
+  company_id: {
+    type: String,
+  },
+  index: {
+    type: Number,
+  },
+  message: {
+    type: String,
+  },
+  username: {
+    type: String,
+  },
+  company_name: {
+    type: String,
+  },
+});
+
+// ----------------------------------- subscribeRequestFromCompany Schema
+
+// ----------------------------------- subscribeRequestFromCompany Schema
+
+export const subscribeRequesttoCompany = new Schema<subscribeRequest>({
+  company_id: {
+    type: String,
+  },
+  index: {
+    type: Number,
+  },
+  message: {
+    type: String,
+  },
+  username: {
+    type: String,
+  },
+  company_name: {
+    type: String,
+  },
+});
+
+// ----------------------------------- subscribeRequestFromCompany Schema
+
+// ----------------------------------- cancelledCompany Schema
+
+export const cancelledCompany = new Schema<cancelledCompany>({
+  company_id: {
+    type: String,
+  },
+  index: {
+    type: Number,
+  },
+  message: {
+    type: String,
+  },
+  username: {
+    type: String,
+  },
+  company_name: {
+    type: String,
+  },
+});
+
+// ----------------------------------- cancelledCompany Schema
 
 // --------------------------------------------- Department Schema
 

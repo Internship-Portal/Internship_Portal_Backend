@@ -1,6 +1,7 @@
-import express, { NextFunction, Request, Response, Router } from "express";
+import { Router } from "express";
 const router: Router = Router();
 import multer from "multer";
+
 import {
   createOfficerController,
   findOfficerController,
@@ -15,8 +16,6 @@ import {
   verifyOfficerByToken,
   getDepartmentDetails,
   getStudentDetailsbyDeptAndYear,
-  otpEmailSendController,
-  forgetPasswordController,
   addCancelledRequest,
   addSubscribeRequestToCompany,
   addSubscribedOfficerFromOfficer,
@@ -26,6 +25,7 @@ import {
   getAllRequestsbyOfficer,
   getAllCompanyByFilter,
   getAllCancelledRequests,
+  getAllCompaniesByFilterInChunksWithSearch,
 } from "../controller/officer";
 
 // Set up multer storage
@@ -33,8 +33,6 @@ const storage = multer({ dest: "uploads/" });
 
 // Set up multer upload middleware
 const upload = multer();
-
-// const upload = multer({ dest: "uploads/" });
 
 // Routes connected to the controllers officers function
 
@@ -77,14 +75,6 @@ router.get("/getDepartmentDetails", getDepartmentDetails);
 // get One Department Details API
 router.post("/getStudentDetails", upload.any(), getStudentDetailsbyDeptAndYear);
 
-// Send OTP to the email_id send
-router.post("/otpEmail", otpEmailSendController);
-
-// Set the new password by sending the token and new password
-router.post("/forgetPassword", forgetPasswordController);
-
-// Remanining Check the below routes
-
 // cancle request of company
 router.put("/addCancelledRequest", addCancelledRequest);
 
@@ -111,5 +101,8 @@ router.get("/getAllSubscribedCompanies", getAllSubscribedCompanies);
 
 // get All Officers filtered with respect to AllSubscribedOfficers, AllRequestsbyCompany, AllRequestedOfficers
 router.get("/getAllCompanyByFilter", getAllCompanyByFilter);
+
+// get Searched Companies with respect to AllSubscribedOfficers, AllRequestsbyCompany, AllRequestedOfficers
+router.post("/getCompaniesBySearch", getAllCompaniesByFilterInChunksWithSearch);
 
 export default router;

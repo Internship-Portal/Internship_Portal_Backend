@@ -2,13 +2,10 @@ import express, { Request, Response, Router } from "express";
 const router: Router = Router();
 import {
   createCompanyController,
-  findCompanyController,
   deleteCompanyController,
   getAllCompanyController,
   verifyCompanyByToken,
   loginCompanyController,
-  otpEmailSendController,
-  forgetPasswordController,
   addSubscribeRequestToOfficer,
   addSubscribedOfficerFromCompany,
   addCancelledRequest,
@@ -17,7 +14,10 @@ import {
   getAllCancelledRequests,
   getAllRequestsbyCompany,
   getAllRequestedOfficers,
-  getAllOfficerByFilter,
+  getAllOfficerByFilterInChunks,
+  getAllOfficerByFilterInChunksWithSearch,
+  selectedStudentsByCompaniesWithoutDates,
+  selectedStudentsByCompaniesWithDates,
 } from "../controller/company";
 
 // Routes connected to the controllers companies function
@@ -31,20 +31,11 @@ router.post("/verifyCompanyToken", verifyCompanyByToken);
 // Create Company Route
 router.post("/createCompany", createCompanyController);
 
-// Get One Company by Id
-router.get("/getOneCompany", findCompanyController);
-
 // Get All Companies
 router.get("/getAll", getAllCompanyController);
 
 // Delete Company by Id
 router.delete("/deleteCompany", deleteCompanyController);
-
-// Send OTP to the email_id send
-router.post("/otpEmail", otpEmailSendController);
-
-// Set the new password by sending the token and new password
-router.post("/forgetPassword", forgetPasswordController);
 
 // Check the below routes
 
@@ -73,6 +64,21 @@ router.get("/getAllRequestsbyCompany", getAllRequestsbyCompany);
 router.get("/getAllRequestedOfficers", getAllRequestedOfficers);
 
 // get All Officers filtered with respect to AllSubscribedOfficers, AllRequestsbyCompany, AllRequestedOfficers
-router.get("/getAllFilteredOfficers", getAllOfficerByFilter);
+router.get("/getAllOfficerByFilterInChunks", getAllOfficerByFilterInChunks);
+
+// get Searched Officers with respect to AllSubscribedOfficers, AllRequestsbyCompany, AllRequestedOfficers
+router.post("/getOfficersBySearch", getAllOfficerByFilterInChunksWithSearch);
+
+// get Searched Officers with respect to AllSubscribedOfficers, AllRequestsbyCompany, AllRequestedOfficers
+router.put(
+  "/setSelectedStudentsWithoutDates",
+  selectedStudentsByCompaniesWithoutDates
+);
+
+// get Searched Officers with respect to AllSubscribedOfficers, AllRequestsbyCompany, AllRequestedOfficers
+router.put(
+  "/setSelectedStudentsWithDates",
+  selectedStudentsByCompaniesWithDates
+);
 
 export default router;

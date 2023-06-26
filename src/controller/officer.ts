@@ -1,14 +1,16 @@
-import { NextFunction, Request, Response } from "express";
+import { Request, Response } from "express";
 import validator from "validator";
-import OfficerModel, { Officer, Students, Department } from "../models/officer";
 import multer from "multer";
 import csvtojson from "csvtojson";
 import { promisify } from "util";
 import fs from "fs";
 import bcrypt from "bcrypt";
+import { shuffle } from "lodash";
 import jwt from "jsonwebtoken";
-import nodemailer from "nodemailer";
 const SecretKey = "lim4yAey6K78dA8N1yKof4Stp9H4A";
+
+import OfficerModel, { Officer, Students, Department } from "../models/officer";
+import CompanyModel, { Company } from "../models/company";
 
 // Delete the upload folder that is created to upload a CSV
 const deleteFolder = (folderPath: string) => {
@@ -33,8 +35,6 @@ const storage = multer({ dest: "uploads/" });
 // Set up multer upload middleware
 const upload = storage.single("csvFile");
 
-import CompanyModel from "../models/company";
-
 // login Officer in the Backend Controller
 export const loginOfficerController = async (req: Request, res: Response) => {
   try {
@@ -45,7 +45,8 @@ export const loginOfficerController = async (req: Request, res: Response) => {
       //Error: Password not found
       return res.status(400).json({ message: "Password not found" });
     } else {
-      let { email_id, password } = req.body;
+      let { email_id, password }: { email_id: string; password: string } =
+        req.body;
       email_id = email_id.trim();
       password = password.trim();
 
@@ -87,12 +88,15 @@ export const verifyOfficerByToken = async (req: Request, res: Response) => {
   try {
     const bearerHeader = req.headers.authorization;
     const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(bearer.split(" ")[1], SecretKey);
+    const tokenVerify = jwt.verify(
+      bearer.split(" ")[1],
+      SecretKey
+    ) as jwt.JwtPayload;
     if (tokenVerify) {
       //Success: data: with id and email_id
       return res.status(200).send({
         message: "Login by token Successful",
-        data: tokenVerify,
+        data: tokenVerify.data,
       });
     } else {
       //Error: cannot verify token
@@ -107,7 +111,19 @@ export const verifyOfficerByToken = async (req: Request, res: Response) => {
 // Create Officer in the Backend Controller
 export const createOfficerController = async (req: Request, res: Response) => {
   try {
-    let { username, email_id, mobile_no, password, college_name } = req.body;
+    let {
+      username,
+      email_id,
+      mobile_no,
+      password,
+      college_name,
+    }: {
+      username: string;
+      email_id: string;
+      mobile_no: string;
+      password: string;
+      college_name: string;
+    } = req.body;
 
     if (!username || !email_id || !mobile_no || !password || !college_name) {
       //Error: anyone details not available
@@ -310,148 +326,6 @@ export const deleteOfficerController = async (
   }
 };
 
-// Forget Password OTP email send function.
-export function sendEmail(req: Request, OTP: number, name: string) {
-  return new Promise((resolve, reject) => {
-    // Configure the nodemailer
-    var transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: "teamgenshinofficial@gmail.com",
-        pass: "wkrivbrwloojnpzb",
-      },
-    });
-
-    const mail_configs = {
-      from: "teamgenshinofficial@gmail.com",
-      to: req.body.email_id,
-      subject: "Internship Portal Password Recovery",
-      html: `<!DOCTYPE html>
-<html lang="en" >
-<head>
-  <meta charset="UTF-8">
-  <title>Internship Portal - OTP Email </title>
-</head>
-<body>
-<!-- partial:index.partial.html -->
-<div style="font-family: Helvetica,Arial,sans-serif;min-width:1000px;overflow:auto;line-height:2">
-  <div style="margin:50px auto;width:70%;padding:20px 0">
-    <div style="border-bottom:1px solid #eee">
-      <a href="" style="font-size:1.4em;color: #00466a;text-decoration:none;font-weight:600">OneCab</a>
-    </div>
-    <p style="font-size:1.1em">Hi ${name},</p>
-    <p>Thank you for choosing Internship Portal. Use the following OTP to complete your Password Recovery Procedure. OTP is valid for 5 minutes</p>
-    <h2 style="background: #00466a;margin: 0 auto;width: max-content;padding: 0 10px;color: #fff;border-radius: 4px;">${OTP}</h2>
-    <p style="font-size:0.9em;">Regards,<br />Internship Portal</p>
-    <hr style="border:none;border-top:1px solid #eee" />
-    <div style="float:right;padding:8px 0;color:#aaa;font-size:0.8em;line-height:1;font-weight:300">
-      <p>Internship Portal Inc</p>
-      <p>Pimpri Chinchwad</p>
-      <p>Pune</p>
-    </div>
-  </div>
-</div>
-<!-- partial -->
-  
-</body>
-</html>`,
-    };
-    // Send the mail to the gmails.
-    transporter.sendMail(mail_configs, function (error, info) {
-      if (error) {
-        // Error: error found
-        return reject({ message: `An error has occured`, error: error });
-      }
-      // Success: Email Send
-      return resolve({ message: "Email sent succesfuly" });
-    });
-  });
-}
-
-export const otpEmailSendController = async (req: Request, res: Response) => {
-  try {
-    // Find the data and generate OTP
-    const OTP = Math.floor(Math.random() * 9000 + 1000);
-    const findUser = await OfficerModel.findOne({
-      email_id: req.body.email_id,
-    });
-
-    if (findUser) {
-      // Creating the token using OTP and email_id
-      const token = jwt.sign(
-        { OTP: OTP, email_id: req.body.email_id },
-        SecretKey
-      );
-      // Send Mail Function
-      sendEmail(req, OTP, findUser.username)
-        .then((response) => {
-          // Success: message and token for forget password
-          res.status(200).json({ message: response, token: token });
-        })
-        .catch((error) => res.status(500).json({ error: error.message }));
-    } else {
-      // Error:
-      return res.status(404).json({ message: "User not Found" });
-    }
-  } catch (e) {
-    // Error:
-    return res.status(500).json({ message: "Internal Server Error", error: e });
-  }
-};
-
-export const forgetPasswordController = async (req: Request, res: Response) => {
-  try {
-    // access the header
-    const bearerHeader = req.headers.authorization;
-    const { email_id, password } = req.body;
-    if (bearerHeader !== undefined) {
-      const bearer: string = bearerHeader as string;
-      // verify the token got from frontend
-      const tokenVerify = jwt.verify(
-        bearer.split(" ")[1],
-        SecretKey
-      ) as jwt.JwtPayload;
-      if (password && email_id && tokenVerify.email_id === email_id) {
-        // find the user in database
-        const findUser = await OfficerModel.findOne({ email_id: email_id });
-        if (findUser) {
-          // Password Hashing using bcrypt.
-          const saltRounds = 10;
-          bcrypt.hash(password, saltRounds).then(async (hashedPassword) => {
-            findUser.password = hashedPassword;
-            const passwordSet = await findUser.save();
-            if (passwordSet) {
-              //Success: if password is set successfully
-              return res
-                .status(200)
-                .json({ message: "Password updated successfully" });
-            } else {
-              // Error: If password cannot be set
-              return res
-                .status(500)
-                .json({ message: "Cannot set the password in database" });
-            }
-          });
-        } else {
-          //Error: user not found
-          return res.status(404).json({ message: "User not Found" });
-        }
-      } else {
-        //Error: Token not valid.
-        return res.status(404).json({ message: "password not found" });
-      }
-    } else {
-      //Error: if Header not found.
-      return res.status(404).json({ message: "Token not found" });
-    }
-  } catch (e) {
-    //Error: if anything breaks
-    return res
-      .status(500)
-      .json({ message: "Some error in setting new password" });
-  }
-};
-
 //Get Student Details
 export const getDepartmentDetails = async (req: Request, res: Response) => {
   try {
@@ -525,8 +399,8 @@ export const addDepartmentDetails = async (
         }
       }
 
-      const departmentName = req.body.department_name;
-      const yearBatch = req.body.year_batch;
+      const departmentName: string = req.body.department_name;
+      const yearBatch: number = req.body.year_batch;
       req.body.college_details.student_details.map((e: Students, i: number) => {
         e.index = i + 1;
         e.branch = departmentName;
@@ -1166,8 +1040,6 @@ export const addSubscribedOfficerFromOfficer = async (
 ) => {
   try {
     const bearerHeader = req.headers.authorization;
-    console.log(req.headers)
-    console.log(req.body)
     const bearer: string = bearerHeader as string;
     const tokenVerify = jwt.verify(
       bearer.split(" ")[1],
@@ -1516,7 +1388,7 @@ export const getAllCompanyByFilter = async (req: Request, res: Response) => {
     if (tokenVerify) {
       const companies = await CompanyModel.find({})
         .select(
-          "-subscribe_request_from_officer -subscribe_request_to_officer -subscribed_officer "
+          "-password -cancelled_officer -subscribe_request_from_officer -subscribe_request_to_officer -subscribed_officer "
         )
         .exec();
 
@@ -1555,9 +1427,29 @@ export const getAllCompanyByFilter = async (req: Request, res: Response) => {
         );
       });
 
-      return res
-        .status(200)
-        .json({ message: "Filtered Companies", data: filteredCompanies });
+      // Shuffle the officers array randomly
+      const shuffledOfficers = shuffle(filteredCompanies);
+
+      // Define the chunk size and total number of chunks
+      const chunkSize = 7; // Number of items in each chunk
+      const totalChunks = Math.ceil(shuffledOfficers.length / chunkSize);
+
+      // Get the requested chunk number from the query parameter
+      const requestedChunk = parseInt(req.query.chunk as string) || 1;
+
+      // Calculate the start and end indices of the chunk
+      const startIndex = (requestedChunk - 1) * chunkSize;
+      const endIndex = requestedChunk * chunkSize;
+
+      // Slice the shuffled data array to get the desired chunk
+      const chunkData = shuffledOfficers.slice(startIndex, endIndex);
+
+      //Success: Send the chunk data as a response
+      return res.status(200).json({
+        message: "Get All Filtered officers is successful",
+        totalChunks: totalChunks,
+        chunkData: chunkData,
+      });
     } else {
       // Error:
       return res
@@ -1568,3 +1460,135 @@ export const getAllCompanyByFilter = async (req: Request, res: Response) => {
     return res.status(500).json("Error retrieving officers: " + error);
   }
 };
+
+export const getAllCompaniesByFilterInChunksWithSearch = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const bearerHeader = req.headers.authorization;
+    const bearer: string = bearerHeader as string;
+    const tokenVerify = jwt.verify(
+      bearer.split(" ")[1],
+      SecretKey
+    ) as jwt.JwtPayload;
+    if (tokenVerify) {
+      const { search }: { search: string } = req.body;
+
+      if (!search || search.length < 3) {
+        // Error: Incomplete Data
+        return res.status(400).json({ message: "Give atleast 3 letters" });
+      }
+
+      const Companies = await CompanyModel.find({})
+        .select(
+          "-password -cancelled_officer -subscribe_request_from_officer -subscribe_request_to_officer -subscribed_officer"
+        )
+        .exec();
+
+      // Assuming you have retrieved the company data
+      const officerData = await OfficerModel.findById({
+        _id: tokenVerify.data,
+      });
+
+      if (!officerData) {
+        return res.status(404).json({ message: "Company data not found." });
+      } else {
+        // Filter Companies based on search criteria
+        const filteredCompanies = Companies.filter((Company) => {
+          const { username, email_id, mobile_no, company_name } = Company;
+          const lowerSearch = search.toLowerCase().replace(" ", "");
+
+          // Check if any of the Companies's fields match the search query
+          return (
+            username.toLowerCase().replace(" ", "").includes(lowerSearch) ||
+            email_id.toLowerCase().replace(" ", "").includes(lowerSearch) ||
+            mobile_no.toLowerCase().replace(" ", "").includes(lowerSearch) ||
+            company_name.toLowerCase().replace(" ", "").includes(lowerSearch)
+          );
+        });
+
+        // Data Interface
+        interface Data {
+          subscribe_request_from_company: Company[];
+          subscribe_request_to_company: Company[];
+          subscribed_company: Company[];
+          remaining_company: Company[];
+        }
+
+        // Initialize data object
+        const data: Data = {
+          subscribe_request_from_company: [],
+          subscribe_request_to_company: [],
+          subscribed_company: [],
+          remaining_company: [],
+        };
+
+        // Filter Companies and populate data object
+        filteredCompanies.forEach((company) => {
+          const companyId = company._id.toString();
+
+          if (
+            officerData.subscribe_request_from_company.some(
+              (req) => req.company_id.toString() === companyId
+            )
+          ) {
+            data.subscribe_request_from_company.push(company);
+            return; // Proceed to next iteration
+          }
+
+          if (
+            officerData.subscribe_request_to_company.some(
+              (req) => req.company_id.toString() === companyId
+            )
+          ) {
+            data.subscribe_request_to_company.push(company);
+            return; // Proceed to next iteration
+          }
+
+          if (
+            officerData.subscribed_company.some(
+              (sub) => sub.company_id.toString() === companyId
+            )
+          ) {
+            data.subscribed_company.push(company);
+            return; // Proceed to next iteration
+          }
+
+          data.remaining_company.push(company);
+        });
+
+        return res.status(200).json({
+          message: "Get All Filtered Companies is successful",
+          data: data,
+        });
+      }
+    }
+  } catch (error) {
+    // Error:
+    return res.status(500).json("Error retrieving Companies: " + error);
+  }
+};
+
+// confirm the selected students department wise and batch-year wise to be unavailable with respect to the Date Provided
+export const confirmSelectedStudents = async (req: Request, res: Response) => {
+  try {
+    const bearerHeader = req.headers.authorization;
+    const bearer: string = bearerHeader as string;
+    const tokenVerify = jwt.verify(
+      bearer.split(" ")[1],
+      SecretKey
+    ) as jwt.JwtPayload;
+    if (tokenVerify) {
+    }
+  } catch (error) {
+    // Error:
+    return res.status(500).json("Error retrieving Companies: " + error);
+  }
+};
+
+// confirm the selected students department wise to be unavailable with no Date Provided
+
+// find all selected students department wise and batch-year wise with Date Provided
+
+// find all selected students department wise with no Date Provided

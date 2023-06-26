@@ -1,19 +1,10 @@
 import { model, Schema, Document, Types } from "mongoose";
 import {
   Students,
-  selectedStudentsDepartwise,
   StudentsSchema,
+  selectedStudents,
+  selectedStudentsInterface,
 } from "./officer";
-
-// --------------- selected students department of Officer Interface
-export interface departments {
-  department_name: string;
-  year_batch: number;
-  internship_start_date: Date;
-  internship_end_date: Date;
-  students_details: Students[];
-}
-// --------------- selected students department of Officer Interface
 
 // ---------------------------------- batchwise department interface
 
@@ -42,7 +33,7 @@ export interface subscribedOfficer {
   index: number;
   message: string;
   access: batchwiseDepartmentsInterface[];
-  selectedstudents: departments[];
+  selectedstudents: selectedStudentsInterface[];
 }
 // ---------------------------------------------- subscribedOfficer Interface
 
@@ -68,31 +59,8 @@ export interface Company extends Document {
   subscribe_request_to_officer: subscribeRequest[];
   subscribed_officer: subscribedOfficer[];
   cancelled_officer: cancelledOfficer[];
-  selected_students: departments[];
 }
 // ---------------------------------------------- Company Interface
-
-// ---------------------selected student Department wise Officer Schema
-
-const departmentDetails = new Schema<departments>({
-  department_name: {
-    type: String,
-  },
-  year_batch: {
-    type: Number,
-  },
-  internship_start_date: {
-    type: Date,
-  },
-  internship_end_date: {
-    type: Date,
-  },
-  students_details: {
-    type: [StudentsSchema],
-  },
-});
-
-// ---------------------selected student Department wise Officer Schema
 
 // ---------------------------------------------- cancelledOfficer Schema
 
@@ -151,7 +119,7 @@ const subscribedOfficer = new Schema<subscribedOfficer>({
     type: String,
   },
   selectedstudents: {
-    type: [departmentDetails],
+    type: [selectedStudents],
   },
 });
 

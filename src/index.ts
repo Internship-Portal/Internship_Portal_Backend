@@ -18,6 +18,10 @@ app.use("/api/officer", OfficerRouter);
 import CompanyRouter from "./routes/Company";
 app.use("/api/company", CompanyRouter);
 
+// OTP Routes Connection
+import OTPRouter from "./routes/otp";
+app.use("/api/otp", OTPRouter);
+
 // Connecting to the Mongo DB from config folder
 import connects from "./config/db";
 connects();
