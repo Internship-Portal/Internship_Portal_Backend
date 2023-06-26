@@ -136,9 +136,9 @@ export const sendOTP = async (req: Request, res: Response) => {
 
 export const verifyOTP = async (req: Request, res: Response) => {
   try {
-    const { otp }: { otp: number } = req.body;
+    let { otp }: { otp: number } = req.body;
     const token = req.headers.authorization?.split(" ")[1];
-    console.log(otp)
+    otp = Number(otp)
 
     // Check if the token and otp is present in the request
     if (!token || !otp) {
@@ -151,7 +151,6 @@ export const verifyOTP = async (req: Request, res: Response) => {
 
     // Find the OTP in the database
     const foundOTP = await otpModel.findById({ _id: decoded.id });
-    console.log(foundOTP)
 
     if (!foundOTP) {
       // Error: OTP not found
