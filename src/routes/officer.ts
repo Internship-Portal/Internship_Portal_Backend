@@ -26,6 +26,13 @@ import {
   getAllCompanyByFilter,
   getAllCancelledRequests,
   getAllCompaniesByFilterInChunksWithSearch,
+  getStudentDetailsbyDeptAndYearSeparatedAvaiability,
+  getAllSelectedStudentsByCompanies,
+  makeSelectedStudentsavailableFailed,
+  confirmSelectedStudentsWithNoDateProvided,
+  makeSelectedStudentsUnavailableConfirm,
+  verifyOfficerTwoStepValidation,
+  confirmSelectedStudentsWithDates,
 } from "../controller/officer";
 
 // Set up multer storage
@@ -38,6 +45,9 @@ const upload = multer();
 
 // Login Officer Route
 router.post("/loginOfficer", loginOfficerController);
+
+// verify the token from frontend ROute
+router.post("/verifyOfficerTwoStepToken", verifyOfficerTwoStepValidation);
 
 // verify the token from frontend ROute
 router.post("/verifyOfficerToken", verifyOfficerByToken);
@@ -104,5 +114,29 @@ router.get("/getAllCompanyByFilter", getAllCompanyByFilter);
 
 // get Searched Companies with respect to AllSubscribedOfficers, AllRequestsbyCompany, AllRequestedOfficers
 router.post("/getCompaniesBySearch", getAllCompaniesByFilterInChunksWithSearch);
+
+// get All available and unavailable students
+router.post(
+  "/getStudentDetailsbyDeptAndYearSeparatedAvaiability",
+  getStudentDetailsbyDeptAndYearSeparatedAvaiability
+);
+
+// get All selected students by companies
+router.post(
+  "/getAllSelectedStudentsByCompanies",
+  getAllSelectedStudentsByCompanies
+);
+
+// make selected students unavailable without Dates
+router.put(
+  "/confirmSelectedStudentsWithNoDateProvided",
+  confirmSelectedStudentsWithNoDateProvided
+);
+
+// make selected students unavailable with Dates
+router.put(
+  "/confirmSelectedStudentsWithDates",
+  confirmSelectedStudentsWithDates
+);
 
 export default router;

@@ -14,6 +14,8 @@ import OfficerModel, {
   subscribeRequest,
   subscribedCompany,
 } from "../models/officer";
+import verificationModel from "../models/verification";
+import { sendEmail } from "./otp";
 
 // login Company in the Backend Controller
 export const loginCompanyController = async (req: Request, res: Response) => {
@@ -33,15 +35,36 @@ export const loginCompanyController = async (req: Request, res: Response) => {
         // bcrypt the password
         let foundCompany = data;
         const hashedPassword = foundCompany.password;
-        bcrypt.compare(password, hashedPassword).then((results) => {
+        bcrypt.compare(password, hashedPassword).then(async (results) => {
           if (results) {
             const data = foundCompany._id;
-            const token = jwt.sign({ data }, SecretKey);
-            // Success
-            return res.status(200).send({
-              message: "Login Successful",
-              token: token,
+            const tokenToSave = jwt.sign({ data: data }, SecretKey);
+
+            // Creating the OTP for two step verification
+            const otp = Math.floor(100000 + Math.random() * 900000);
+
+            // Create verification Model
+            const createdVerification = await verificationModel.create({
+              user_token: tokenToSave,
+              user: "company",
+              otp: otp,
+              otpverified: false,
+              expiresAt: new Date(Date.now() + 5 * 60 * 1000),
             });
+
+            // Create JWT Token to send in the response
+            const token = jwt.sign({ id: createdVerification._id }, SecretKey, {
+              expiresIn: "5m",
+            });
+
+            // Send the OTP to the officer's email
+            // Send Email
+            sendEmail(req, otp, foundCompany.username, "validation")
+              .then((response) => {
+                //Success: Login Successful
+                res.status(200).json({ message: response, token: token });
+              })
+              .catch((error) => res.status(500).json({ error: error.message }));
           } else {
             // Error:
             return res.status(404).json({ message: "Wrong Password " });
@@ -58,6 +81,62 @@ export const loginCompanyController = async (req: Request, res: Response) => {
   }
 };
 
+// verify Company by Token got from frontend
+export const verifyCompanyTwoStepValidation = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const bearerHeader = req.headers.authorization;
+    const bearer: string = bearerHeader as string;
+    const tokenVerify = jwt.verify(
+      bearer.split(" ")[1],
+      SecretKey
+    ) as jwt.JwtPayload;
+    if (tokenVerify) {
+      // find the verification data
+      const verification = await verificationModel.findById({
+        _id: tokenVerify.id,
+      });
+      if (
+        verification &&
+        verification.otpverified === false &&
+        verification.user === "company"
+      ) {
+        // take otp from frontend and
+        const { otp } = req.body;
+        if (Number(otp) === verification.otp) {
+          // Success: OTP verified
+          verification.otpverified = true;
+          await verification.save();
+
+          const tokenData = jwt.verify(
+            verification.user_token,
+            SecretKey
+          ) as jwt.JwtPayload;
+
+          return res.status(200).json({
+            message: "OTP verified",
+            data: tokenData,
+            token: verification.user_token,
+          });
+        } else {
+          // Error: Invalid OTP
+          return res.status(400).json({ message: "Invalid OTP" });
+        }
+      } else {
+        // Error: Problem in verifying
+        return res.status(500).json({ message: "Invalid Token" });
+      }
+    } else {
+      //Error: cannot verify token
+      res.status(400).json({ message: "Cannot verify token" });
+    }
+  } catch (e) {
+    //Error: Problem in verifying
+    return res.status(500).json({ message: "Problem in verifying the token" });
+  }
+};
 // verify Company by Token got from frontend
 export const verifyCompanyByToken = async (req: Request, res: Response) => {
   try {
@@ -579,6 +658,7 @@ export const selectedStudentsByCompaniesWithoutDates = async (
             year_batch: year_batch,
             end_date: null,
             start_date: null,
+            confirmed: false,
             studentsdetails: selected_students,
           };
 
@@ -653,46 +733,53 @@ export const selectedStudentsByCompaniesWithDates = async (
   req: Request,
   res: Response
 ) => {
-  try {
-    const bearerHeader = req.headers.authorization;
-    const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(
-      bearer.split(" ")[1],
-      SecretKey
-    ) as jwt.JwtPayload;
-    if (tokenVerify) {
-      const {
-        officer_id,
-        department_name,
-        year_batch,
-        start_date,
-        end_date,
-        selected_students,
-      }: {
-        officer_id: string;
-        department_name: string;
-        year_batch: number;
-        start_date: Date;
-        end_date: Date;
-        selected_students: Students[];
-      } = req.body;
-      const company_id = tokenVerify.data;
-      if (
-        !officer_id ||
-        !company_id ||
-        !department_name ||
-        !year_batch ||
-        !start_date ||
-        !end_date ||
-        selected_students.length === 0
-      ) {
-        // error:
-        return res.status(400).json({ message: "Incomplete Data" });
-      } else {
-        // confirm the company and officer is both subscribed
-        const verifyOfficer = await OfficerModel.findById({ _id: officer_id });
-        const verifyCompany = await CompanyModel.findById({ _id: company_id });
+  // try {
+  const bearerHeader = req.headers.authorization;
+  const bearer: string = bearerHeader as string;
+  const tokenVerify = jwt.verify(
+    bearer.split(" ")[1],
+    SecretKey
+  ) as jwt.JwtPayload;
+  if (tokenVerify) {
+    const {
+      officer_id,
+      department_name,
+      year_batch,
+      start_date,
+      end_date,
+      selected_students,
+    }: {
+      officer_id: string;
+      department_name: string;
+      year_batch: number;
+      start_date: Date;
+      end_date: Date;
+      selected_students: Students[];
+    } = req.body;
+    const company_id = tokenVerify.data;
+    if (
+      !officer_id ||
+      !company_id ||
+      !department_name ||
+      !year_batch ||
+      !start_date ||
+      !end_date ||
+      selected_students.length === 0
+    ) {
+      // error:
+      return res.status(400).json({ message: "Incomplete Data" });
+    } else {
+      // confirm the company and officer is both subscribed
+      const verifyOfficer = await OfficerModel.findById({ _id: officer_id });
+      const verifyCompany = await CompanyModel.findById({ _id: company_id });
 
+      // check if the end date is greater than the current date and start date is less than end date
+      const currentDate = new Date();
+      const endDate = new Date(end_date);
+      const startDate = new Date(start_date);
+      if (endDate <= currentDate || startDate > endDate) {
+        return res.status(400).json({ message: "Invalid Dates" });
+      } else {
         if (!verifyOfficer || !verifyCompany) {
           // error:
           return res
@@ -708,14 +795,15 @@ export const selectedStudentsByCompaniesWithDates = async (
             year_batch: year_batch,
             end_date: end_date,
             start_date: start_date,
+            confirmed: false,
             studentsdetails: selected_students,
           };
 
-          // add the data in company and check if the data exist in both or not
+          // add the data in officer and check if the data exist in both or not
 
-          for (const obj of verifyCompany.subscribed_officer) {
-            if (obj.officer_id === officer_id) {
-              foundInCompany = true;
+          verifyOfficer.subscribed_company.filter((obj) => {
+            if (obj.company_id === company_id) {
+              foundInOfficer = true;
               if (
                 obj.selectedstudents.some((student) => {
                   return (
@@ -731,18 +819,19 @@ export const selectedStudentsByCompaniesWithDates = async (
                   message: "Data about selected students already exists",
                 });
               }
-              break; // Exit the loop after finding a match
             }
-          }
+          });
 
-          if (!foundInCompany || !foundInCompanySubscribed) {
-            verifyOfficer.subscribed_company.filter((obj) => {
-              if (obj.company_id === company_id) {
-                foundInOfficer = true;
+          if (!foundInOfficer || !foundInCompanySubscribed) {
+            // add the data in company and check if the data exist in both or not
+            for (const obj of verifyCompany.subscribed_officer) {
+              if (obj.officer_id === officer_id) {
+                foundInCompany = true;
+                foundInCompanySubscribed = true;
                 obj.selectedstudents.push(data);
+                break; // Exit the loop after finding a match
               }
-            });
-
+            }
             if (!foundInCompany || !foundInOfficer) {
               return res.status(400).json({
                 message: "Invalid Subscription",
@@ -764,16 +853,15 @@ export const selectedStudentsByCompaniesWithDates = async (
           }
         }
       }
-    } else {
-      // error:
-      return res
-        .status(500)
-        .json({ message: "Problem in verifying the token" });
     }
-  } catch (e) {
+  } else {
     // error:
-    return res.status(500).json({ message: "Server Error" });
+    return res.status(500).json({ message: "Problem in verifying the token" });
   }
+  // } catch (e) {
+  //   // error:
+  //   return res.status(500).json({ message: "Server Error" });
+  // }
 };
 
 // get Student details by department and year_batch through company
@@ -1034,15 +1122,14 @@ export const getAllSubscribedOfficers = async (req: Request, res: Response) => {
         // Error:
         return res.status(400).json({ message: "Officer does not exist" });
       } else {
-        const getAllSubscribedOfficers =
-          foundCompany.subscribed_officer;
+        const getAllSubscribedOfficers = foundCompany.subscribed_officer;
 
         if (getAllSubscribedOfficers.length === 0) {
           // No Requested Companies
           return res.status(200).json({ message: "Not any Request" });
         } else {
           // Success:
-        
+
           return res.status(200).json({
             message: "get All Requested Companies Successful",
             data: getAllSubscribedOfficers,

@@ -8,6 +8,7 @@ export interface selectedStudentsInterface {
   year_batch: number;
   start_date: Date | null;
   end_date: Date | null;
+  confirmed: boolean;
   studentsdetails: Students[];
 }
 
@@ -75,6 +76,8 @@ export interface Students {
   internship_start_date: Date | null;
   internship_end_date: Date | null;
   Internship_status: boolean;
+  current_internship: string | null;
+  internships_till_now: [string];
   tenth_percentage: number;
   twelve_percentage: number;
   diploma_percentage: number;
@@ -185,30 +188,27 @@ export const StudentsSchema = new Schema<Students>({
   diploma_percentage: {
     type: Number,
   },
+  current_internship: {
+    type: String,
+    default: null,
+  },
+  internships_till_now: {
+    type: [String],
+  },
   Internship_status: {
     type: Boolean,
   },
 });
 
-StudentsSchema.path("Internship_status").set(function (
-  this: Students,
-  value: boolean
-) {
-  if (
-    this.internship_start_date !== null &&
-    this.internship_end_date !== null
-  ) {
-    const currentDate = new Date();
-    this.Internship_status =
-      currentDate >= this.internship_start_date &&
-      currentDate <= this.internship_end_date;
-    if (this.Internship_status === false) {
-      this.internship_start_date = null;
-      this.internship_end_date = null;
-    }
-  } else {
+StudentsSchema.pre<Students>("save", function (next) {
+  const currentDate = new Date();
+  if (this.internship_end_date && this.internship_end_date == currentDate) {
     this.Internship_status = false;
+    this.current_internship = null;
+    this.internship_start_date = null;
+    this.internship_end_date = null;
   }
+  next();
 });
 
 // ----------------------------------------------- Student Schema
@@ -227,6 +227,9 @@ export const selectedStudents = new Schema<selectedStudentsInterface>({
   },
   end_date: {
     type: Date,
+  },
+  confirmed: {
+    type: Boolean,
   },
   studentsdetails: {
     type: [StudentsSchema],
