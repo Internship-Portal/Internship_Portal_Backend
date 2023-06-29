@@ -40,31 +40,37 @@ export const loginCompanyController = async (req: Request, res: Response) => {
             const data = foundCompany._id;
             const tokenToSave = jwt.sign({ data: data }, SecretKey);
 
+            return res.status(200).json({
+              message: "Login Successful",
+              token: tokenToSave,
+              data: foundCompany,
+            });
+
             // Creating the OTP for two step verification
-            const otp = Math.floor(100000 + Math.random() * 900000);
+            // const otp = Math.floor(100000 + Math.random() * 900000);
 
             // Create verification Model
-            const createdVerification = await verificationModel.create({
-              user_token: tokenToSave,
-              user: "company",
-              otp: otp,
-              otpverified: false,
-              expiresAt: new Date(Date.now() + 5 * 60 * 1000),
-            });
+            // const createdVerification = await verificationModel.create({
+            //   user_token: tokenToSave,
+            //   user: "company",
+            //   otp: otp,
+            //   otpverified: false,
+            //   expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+            // });
 
             // Create JWT Token to send in the response
-            const token = jwt.sign({ id: createdVerification._id }, SecretKey, {
-              expiresIn: "5m",
-            });
+            // const token = jwt.sign({ id: createdVerification._id }, SecretKey, {
+            //   expiresIn: "5m",
+            // });
 
             // Send the OTP to the officer's email
             // Send Email
-            sendEmail(req, otp, foundCompany.username, "validation")
-              .then((response) => {
-                //Success: Login Successful
-                res.status(200).json({ message: response, token: token });
-              })
-              .catch((error) => res.status(500).json({ error: error.message }));
+            // sendEmail(req, otp, foundCompany.username, "validation")
+            //   .then((response) => {
+            //Success: Login Successful
+            // res.status(200).json({ message: response, token: token });
+            // })
+            // .catch((error) => res.status(500).json({ error: error.message }));
           } else {
             // Error:
             return res.status(404).json({ message: "Wrong Password " });
@@ -1106,46 +1112,45 @@ export const getAllCancelledRequests = async (req: Request, res: Response) => {
 };
 
 export const getAllSubscribedOfficers = async (req: Request, res: Response) => {
-  try {
-    const bearerHeader = req.headers.authorization;
-    const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(
-      bearer.split(" ")[1],
-      SecretKey
-    ) as jwt.JwtPayload;
-    if (tokenVerify) {
-      const foundCompany = await CompanyModel.findById({
-        _id: tokenVerify.data,
-      });
+  // try {
+  const bearerHeader = req.headers.authorization;
+  const bearer: string = bearerHeader as string;
+  const tokenVerify = jwt.verify(
+    bearer.split(" ")[1],
+    SecretKey
+  ) as jwt.JwtPayload;
+  if (tokenVerify) {
+    console.log(tokenVerify);
+    const foundCompany = await CompanyModel.findById({
+      _id: tokenVerify.data,
+    });
 
-      if (!foundCompany) {
-        // Error:
-        return res.status(400).json({ message: "Officer does not exist" });
-      } else {
-        const getAllSubscribedOfficers = foundCompany.subscribed_officer;
-
-        if (getAllSubscribedOfficers.length === 0) {
-          // No Requested Companies
-          return res.status(200).json({ message: "Not any Request" });
-        } else {
-          // Success:
-
-          return res.status(200).json({
-            message: "get All Requested Companies Successful",
-            data: getAllSubscribedOfficers,
-          });
-        }
-      }
-    } else {
+    if (!foundCompany) {
       // Error:
-      return res
-        .status(500)
-        .json({ message: "Problem in verifying the token" });
+      return res.status(400).json({ message: "Officer does not exist" });
+    } else {
+      const getAllSubscribedOfficers = foundCompany.subscribed_officer;
+
+      if (getAllSubscribedOfficers.length === 0) {
+        // No Requested Companies
+        return res.status(200).json({ message: "Not any Request" });
+      } else {
+        // Success:
+
+        return res.status(200).json({
+          message: "get All Requested Companies Successful",
+          data: getAllSubscribedOfficers,
+        });
+      }
     }
-  } catch (e) {
+  } else {
     // Error:
-    return res.status(500).json({ message: "Server Error" });
+    return res.status(500).json({ message: "Problem in verifying the token" });
   }
+  // } catch (e) {
+  //   // Error:
+  //   return res.status(500).json({ message: "Server Error" });
+  // }
 };
 
 export const getAllOfficerByFilterInChunks = async (

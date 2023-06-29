@@ -70,31 +70,39 @@ export const loginOfficerController = async (req: Request, res: Response) => {
             // Converting the id and email
             const tokenToSave = jwt.sign({ data: data._id }, SecretKey);
 
+            return res
+              .status(200)
+              .json({
+                message: "Login Successful",
+                data: data._id,
+                token: tokenToSave,
+              });
+
             // Creating the OTP for two step verification
-            const otp = Math.floor(100000 + Math.random() * 900000);
+            // const otp = Math.floor(100000 + Math.random() * 900000);
 
             // Create verification Model
-            const createdVerification = await verificationModel.create({
-              user_token: tokenToSave,
-              user: "officer",
-              otp: otp,
-              otpverified: false,
-              expiresAt: new Date(Date.now() + 5 * 60 * 1000),
-            });
+            // const createdVerification = await verificationModel.create({
+            //   user_token: tokenToSave,
+            //   user: "officer",
+            //   otp: otp,
+            //   otpverified: false,
+            //   expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+            // });
 
             // Create JWT Token to send in the response
-            const token = jwt.sign({ id: createdVerification._id }, SecretKey, {
-              expiresIn: "5m",
-            });
+            // const token = jwt.sign({ id: createdVerification._id }, SecretKey, {
+            //   expiresIn: "5m",
+            // });
 
             // Send the OTP to the officer's email
             // Send Email
-            sendEmail(req, otp, foundOfficer.username, "validation")
-              .then((response) => {
-                //Success: Login Successful
-                res.status(200).json({ message: response, token: token });
-              })
-              .catch((error) => res.status(500).json({ error: error.message }));
+            // sendEmail(req, otp, foundOfficer.username, "validation")
+            //   .then((response) => {
+            //Success: Login Successful
+            //   res.status(200).json({ message: response, token: token });
+            // })
+            // .catch((error) => res.status(500).json({ error: error.message }));
           } else {
             //Error: Wrong Password
             return res.status(404).json({ message: "Wrong Password Error" });
