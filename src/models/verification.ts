@@ -3,8 +3,7 @@ import { model, Schema, Document } from "mongoose";
 // --------------------------- verification Interface
 
 export interface verification extends Document {
-  user_token: string;
-  user: string;
+  email_id: string;
   otp: number;
   otpverified: boolean;
   expiresAt: Date;
@@ -15,11 +14,7 @@ export interface verification extends Document {
 // --------------------------- verification Schema
 
 const verificationSchema = new Schema<verification>({
-  user_token: {
-    type: String,
-    required: true,
-  },
-  user: {
+  email_id: {
     type: String,
     required: true,
   },

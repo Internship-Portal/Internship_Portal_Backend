@@ -67,7 +67,7 @@ export const loginCompanyController = async (req: Request, res: Response) => {
             // Send Email
             // sendEmail(req, otp, foundCompany.username, "validation")
             //   .then((response) => {
-            //Success: Login Successful
+            // Success: Login Successful
             // res.status(200).json({ message: response, token: token });
             // })
             // .catch((error) => res.status(500).json({ error: error.message }));
@@ -88,61 +88,61 @@ export const loginCompanyController = async (req: Request, res: Response) => {
 };
 
 // verify Company by Token got from frontend
-export const verifyCompanyTwoStepValidation = async (
-  req: Request,
-  res: Response
-) => {
-  try {
-    const bearerHeader = req.headers.authorization;
-    const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(
-      bearer.split(" ")[1],
-      SecretKey
-    ) as jwt.JwtPayload;
-    if (tokenVerify) {
-      // find the verification data
-      const verification = await verificationModel.findById({
-        _id: tokenVerify.id,
-      });
-      if (
-        verification &&
-        verification.otpverified === false &&
-        verification.user === "company"
-      ) {
-        // take otp from frontend and
-        const { otp } = req.body;
-        if (Number(otp) === verification.otp) {
-          // Success: OTP verified
-          verification.otpverified = true;
-          await verification.save();
+// export const verifyCompanyTwoStepValidation = async (
+//   req: Request,
+//   res: Response
+// ) => {
+//   try {
+//     const bearerHeader = req.headers.authorization;
+//     const bearer: string = bearerHeader as string;
+//     const tokenVerify = jwt.verify(
+//       bearer.split(" ")[1],
+//       SecretKey
+//     ) as jwt.JwtPayload;
+//     if (tokenVerify) {
+//       // find the verification data
+//       const verification = await verificationModel.findById({
+//         _id: tokenVerify.id,
+//       });
+//       if (
+//         verification &&
+//         verification.otpverified === false &&
+//         verification.user === "company"
+//       ) {
+//         // take otp from frontend and
+//         const { otp } = req.body;
+//         if (Number(otp) === verification.otp) {
+//           // Success: OTP verified
+//           verification.otpverified = true;
+//           await verification.save();
 
-          const tokenData = jwt.verify(
-            verification.user_token,
-            SecretKey
-          ) as jwt.JwtPayload;
+//           const tokenData = jwt.verify(
+//             verification.user_token,
+//             SecretKey
+//           ) as jwt.JwtPayload;
 
-          return res.status(200).json({
-            message: "OTP verified",
-            data: tokenData,
-            token: verification.user_token,
-          });
-        } else {
-          // Error: Invalid OTP
-          return res.status(400).json({ message: "Invalid OTP" });
-        }
-      } else {
-        // Error: Problem in verifying
-        return res.status(500).json({ message: "Invalid Token" });
-      }
-    } else {
-      //Error: cannot verify token
-      res.status(400).json({ message: "Cannot verify token" });
-    }
-  } catch (e) {
-    //Error: Problem in verifying
-    return res.status(500).json({ message: "Problem in verifying the token" });
-  }
-};
+//           return res.status(200).json({
+//             message: "OTP verified",
+//             data: tokenData,
+//             token: verification.user_token,
+//           });
+//         } else {
+//           // Error: Invalid OTP
+//           return res.status(400).json({ message: "Invalid OTP" });
+//         }
+//       } else {
+//         // Error: Problem in verifying
+//         return res.status(500).json({ message: "Invalid Token" });
+//       }
+//     } else {
+//       //Error: cannot verify token
+//       res.status(400).json({ message: "Cannot verify token" });
+//     }
+//   } catch (e) {
+//     //Error: Problem in verifying
+//     return res.status(500).json({ message: "Problem in verifying the token" });
+//   }
+// };
 // verify Company by Token got from frontend
 export const verifyCompanyByToken = async (req: Request, res: Response) => {
   try {
@@ -174,85 +174,100 @@ export const createCompanyController = async (
   res: Response
 ): Promise<any> => {
   try {
-    let { username, email_id, password, mobile_no, company_name } = req.body;
+    const bearerHeader = req.headers.authorization;
+    const bearer: string = bearerHeader as string;
+    const tokenVerify = jwt.verify(
+      bearer.split(" ")[1],
+      SecretKey
+    ) as jwt.JwtPayload;
+    if (tokenVerify) {
+      let { username, password, mobile_no, company_name } = req.body;
 
-    if (!username || !email_id || !mobile_no || !password || !company_name) {
-      // Data Incomplete Error
-      return res.status(400).json({ message: "Data Incomplete Error" });
-    }
+      let email_id = tokenVerify.email_id.toLowerCase();
 
-    if (!validator.isEmail(email_id)) {
-      // Invalid Email
-      return res.status(400).json({ message: "Invalid Email" });
-    }
+      if (!username || !mobile_no || !password || !company_name) {
+        // Data Incomplete Error
+        return res.status(400).json({ message: "Data Incomplete Error" });
+      }
 
-    if (!/^[a-z A-Z0-9]*$/.test(username)) {
-      // Invalid UserName
-      return res
-        .status(400)
-        .json({ message: "Username should be alphanumeric" });
-    }
+      if (!validator.isEmail(email_id)) {
+        // Invalid Email
+        return res.status(400).json({ message: "Invalid Email" });
+      }
 
-    if (password.length < 8) {
-      // Password should be at least 8 characters
-      return res
-        .status(400)
-        .json({ message: "Password should be at least 8 characters" });
-    }
+      if (!/^[a-z A-Z0-9]*$/.test(username)) {
+        // Invalid UserName
+        return res
+          .status(400)
+          .json({ message: "Username should be alphanumeric" });
+      }
 
-    email_id = email_id.trim();
-    password = password.trim();
+      if (password.length < 8) {
+        // Password should be at least 8 characters
+        return res
+          .status(400)
+          .json({ message: "Password should be at least 8 characters" });
+      }
 
-    // Check if the email already exists in either Company or Officer
-    const company = await CompanyModel.exists({ email_id: email_id });
-    const officer = await OfficerModel.exists({ email_id: email_id });
+      email_id = email_id.trim();
+      password = password.trim();
 
-    if (company || officer) {
-      // Officer or Company already exists with this email id
-      return res.status(400).json({
-        message: "Officer or Company already exists with this email id",
+      // Check if the email already exists in either Company or Officer
+      const company = await CompanyModel.exists({ email_id: email_id });
+      const officer = await OfficerModel.exists({ email_id: email_id });
+
+      if (company || officer) {
+        // Officer or Company already exists with this email id
+        return res.status(400).json({
+          message: "Officer or Company already exists with this email id",
+        });
+      }
+
+      // Allocate the index
+      const lastCompany = await CompanyModel.findOne().sort({ _id: -1 });
+      let index: number;
+
+      if (lastCompany && lastCompany.index === 0) {
+        // If a mistake happens and index is set to 0, the next index will be stored as 1
+        index = 1;
+      } else if (lastCompany) {
+        // Add 1 to the previous company index and store it in the new Company
+        index = Number.isNaN(lastCompany.index) ? 0 : lastCompany.index + 1;
+      } else {
+        index = 1; // Default index when no company is found
+      }
+
+      // Hash the password using bcrypt
+      const saltRounds = 10;
+      const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+      // Create the company
+      const newCompany = await CompanyModel.create({
+        index: index,
+        username: username,
+        password: hashedPassword,
+        email_id: email_id,
+        mobile_no: mobile_no,
+        company_name: company_name,
+        subscribe_request_from_officer: [],
+        subscribe_request_to_officer: [],
+        subscribed_officer: [],
+        cancelled_officer: [],
+        selected_students: [],
       });
-    }
 
-    // Allocate the index
-    const lastCompany = await CompanyModel.findOne().sort({ _id: -1 });
-    let index: number;
-
-    if (lastCompany && lastCompany.index === 0) {
-      // If a mistake happens and index is set to 0, the next index will be stored as 1
-      index = 1;
-    } else if (lastCompany) {
-      // Add 1 to the previous company index and store it in the new Company
-      index = Number.isNaN(lastCompany.index) ? 0 : lastCompany.index + 1;
+      if (newCompany) {
+        // Success: Company created successfully
+        return res
+          .status(200)
+          .json({ message: "Company created successfully" });
+      } else {
+        // Error: Failed to create company
+        return res.status(500).json({ message: "Failed to create company" });
+      }
     } else {
-      index = 1; // Default index when no company is found
-    }
-
-    // Hash the password using bcrypt
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-    // Create the company
-    const newCompany = await CompanyModel.create({
-      index: index,
-      username: username,
-      password: hashedPassword,
-      email_id: email_id,
-      mobile_no: mobile_no,
-      company_name: company_name,
-      subscribe_request_from_officer: [],
-      subscribe_request_to_officer: [],
-      subscribed_officer: [],
-      cancelled_officer: [],
-      selected_students: [],
-    });
-
-    if (newCompany) {
-      // Success: Company created successfully
-      return res.status(200).json({ message: "Company created successfully" });
-    } else {
-      // Error: Failed to create company
-      return res.status(500).json({ message: "Failed to create company" });
+      // Error:
+      res.status(400).json({ message: "Cannot verify token" });
     }
   } catch (e) {
     // Error: Server Error
@@ -268,21 +283,31 @@ export const getAllCompanyController = async (
   try {
     const bearerHeader = req.headers.authorization;
     const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(bearer.split(" ")[1], SecretKey);
+    const tokenVerify = jwt.verify(
+      bearer.split(" ")[1],
+      SecretKey
+    ) as jwt.JwtPayload;
     if (tokenVerify) {
-      // FInd all the details
-      let data = await CompanyModel.find().select(
-        "-password -subscribe_request_from_officer -subscribe_request_to_officer -subscribed_officer -cancelled_officer "
-      );
-      if (data.length !== 0) {
-        // Success:
-        return res.status(200).json({
-          message: "This is company's getAll Page",
-          data: data,
-        });
+      const company = await CompanyModel.exists({ _id: tokenVerify.data });
+      // finding the officer by the ID got from the frontend
+      if (!company) {
+        // FInd all the details
+        let data = await CompanyModel.find().select(
+          "-password -subscribe_request_from_officer -subscribe_request_to_officer -subscribed_officer -cancelled_officer "
+        );
+        if (data.length !== 0) {
+          // Success:
+          return res.status(200).json({
+            message: "This is company's getAll Page",
+            data: data,
+          });
+        } else {
+          // Error:
+          res.status(500).json({ message: "cannot find any company" });
+        }
       } else {
-        // Error:
-        res.status(500).json({ message: "cannot find any company" });
+        // Error: Problem in verifying
+        return res.status(500).json({ message: "valid Company not found." });
       }
     } else {
       // Error:
@@ -448,6 +473,12 @@ export const addSubscribedOfficerFromCompany = async (
         .json({ message: "Problem in verifying the token" });
     }
 
+    const company = await CompanyModel.exists({ _id: tokenVerify.data });
+    if (!company) {
+      // Error: Problem in verifying the token
+      return res.status(500).json({ message: "valid Company not found. " });
+    }
+
     // Find
     const { officer_id, message } = req.body;
 
@@ -538,6 +569,12 @@ export const addCancelledRequest = async (req: Request, res: Response) => {
       return res
         .status(500)
         .json({ message: "Problem in verifying the token" });
+    }
+
+    const companyExist = await CompanyModel.exists({ _id: tokenVerify.data });
+    if (!companyExist) {
+      // Error: Problem in verifying the token
+      return res.status(500).json({ message: "valid Company not found. " });
     }
 
     // Find the officer

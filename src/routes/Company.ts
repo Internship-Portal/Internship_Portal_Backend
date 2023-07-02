@@ -18,7 +18,7 @@ import {
   getAllOfficerByFilterInChunksWithSearch,
   selectedStudentsByCompaniesWithoutDates,
   selectedStudentsByCompaniesWithDates,
-  verifyCompanyTwoStepValidation,
+  // verifyCompanyTwoStepValidation,
 } from "../controller/company";
 
 // Routes connected to the controllers companies function
@@ -27,7 +27,7 @@ import {
 router.post("/loginCompany", loginCompanyController);
 
 // verify the token from frontend ROute
-router.post("/verifyCompanyTwoStepValidation", verifyCompanyTwoStepValidation);
+// router.post("/verifyCompanyTwoStepValidation", verifyCompanyTwoStepValidation);
 
 // verify the token from frontend ROute
 router.post("/verifyCompanyToken", verifyCompanyByToken);

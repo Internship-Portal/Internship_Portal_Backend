@@ -17,7 +17,6 @@ import OfficerModel, {
   selectedStudentsInterface,
 } from "../models/officer";
 import CompanyModel, { Company, subscribedOfficer } from "../models/company";
-import { off } from "process";
 import verificationModel from "../models/verification";
 import { sendEmail } from "./otp";
 
@@ -70,13 +69,11 @@ export const loginOfficerController = async (req: Request, res: Response) => {
             // Converting the id and email
             const tokenToSave = jwt.sign({ data: data._id }, SecretKey);
 
-            return res
-              .status(200)
-              .json({
-                message: "Login Successful",
-                data: data._id,
-                token: tokenToSave,
-              });
+            return res.status(200).json({
+              message: "Login Successful",
+              data: data._id,
+              token: tokenToSave,
+            });
 
             // Creating the OTP for two step verification
             // const otp = Math.floor(100000 + Math.random() * 900000);
@@ -120,61 +117,61 @@ export const loginOfficerController = async (req: Request, res: Response) => {
 };
 
 // verify Officer by Token got from frontend
-export const verifyOfficerTwoStepValidation = async (
-  req: Request,
-  res: Response
-) => {
-  try {
-    const bearerHeader = req.headers.authorization;
-    const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(
-      bearer.split(" ")[1],
-      SecretKey
-    ) as jwt.JwtPayload;
-    if (tokenVerify) {
-      // find the verification data
-      const verification = await verificationModel.findById({
-        _id: tokenVerify.id,
-      });
-      if (
-        verification &&
-        verification.otpverified === false &&
-        verification.user === "officer"
-      ) {
-        // take otp from frontend and
-        const { otp } = req.body;
-        if (Number(otp) === verification.otp) {
-          // Success: OTP verified
-          verification.otpverified = true;
-          await verification.save();
+// export const verifyOfficerTwoStepValidation = async (
+//   req: Request,
+//   res: Response
+// ) => {
+//   try {
+//     const bearerHeader = req.headers.authorization;
+//     const bearer: string = bearerHeader as string;
+//     const tokenVerify = jwt.verify(
+//       bearer.split(" ")[1],
+//       SecretKey
+//     ) as jwt.JwtPayload;
+//     if (tokenVerify) {
+//       // find the verification data
+//       const verification = await verificationModel.findById({
+//         _id: tokenVerify.id,
+//       });
+//       if (
+//         verification &&
+//         verification.otpverified === false &&
+//         verification.user === "officer"
+//       ) {
+//         // take otp from frontend and
+//         const { otp } = req.body;
+//         if (Number(otp) === verification.otp) {
+//           // Success: OTP verified
+//           verification.otpverified = true;
+//           await verification.save();
 
-          const tokenData = jwt.verify(
-            verification.user_token,
-            SecretKey
-          ) as jwt.JwtPayload;
+//           const tokenData = jwt.verify(
+//             verification.user_token,
+//             SecretKey
+//           ) as jwt.JwtPayload;
 
-          return res.status(200).json({
-            message: "OTP verified",
-            data: tokenData,
-            token: verification.user_token,
-          });
-        } else {
-          // Error: Invalid OTP
-          return res.status(400).json({ message: "Invalid OTP" });
-        }
-      } else {
-        // Error: Problem in verifying
-        return res.status(500).json({ message: "Invalid Token" });
-      }
-    } else {
-      //Error: cannot verify token
-      res.status(400).json({ message: "Cannot verify token" });
-    }
-  } catch (e) {
-    //Error: Problem in verifying
-    return res.status(500).json({ message: "Problem in verifying the token" });
-  }
-};
+//           return res.status(200).json({
+//             message: "OTP verified",
+//             data: tokenData,
+//             token: verification.user_token,
+//           });
+//         } else {
+//           // Error: Invalid OTP
+//           return res.status(400).json({ message: "Invalid OTP" });
+//         }
+//       } else {
+//         // Error: Problem in verifying
+//         return res.status(500).json({ message: "Invalid Token" });
+//       }
+//     } else {
+//       //Error: cannot verify token
+//       res.status(400).json({ message: "Cannot verify token" });
+//     }
+//   } catch (e) {
+//     //Error: Problem in verifying
+//     return res.status(500).json({ message: "Problem in verifying the token" });
+//   }
+// };
 
 // verify Officer by Token got from frontend
 export const verifyOfficerByToken = async (req: Request, res: Response) => {
@@ -204,95 +201,105 @@ export const verifyOfficerByToken = async (req: Request, res: Response) => {
 // Create Officer in the Backend Controller
 export const createOfficerController = async (req: Request, res: Response) => {
   try {
-    let {
-      username,
-      email_id,
-      mobile_no,
-      password,
-      college_name,
-    }: {
-      username: string;
-      email_id: string;
-      mobile_no: string;
-      password: string;
-      college_name: string;
-    } = req.body;
+    const bearerHeader = req.headers.authorization;
+    const bearer: string = bearerHeader as string;
+    const tokenVerify = jwt.verify(
+      bearer.split(" ")[1],
+      SecretKey
+    ) as jwt.JwtPayload;
+    if (tokenVerify) {
+      let {
+        username,
+        mobile_no,
+        password,
+        college_name,
+      }: {
+        username: string;
+        mobile_no: string;
+        password: string;
+        college_name: string;
+      } = req.body;
 
-    if (!username || !email_id || !mobile_no || !password || !college_name) {
-      //Error: anyone details not available
-      return res.status(400).json({ message: "Data Incomplete Error" });
-    } else if (!validator.isEmail(email_id)) {
-      //Error: Invalid Email id passed
-      return res.status(400).json({ message: "Invalid Email" });
-    } else if (password.length < 8) {
-      //Error: password less than 8 characters
-      return res
-        .status(400)
-        .json({ message: "password less than 8 characters" });
-    } else if (mobile_no.length < 5) {
-      //Error: mobile_no greater than 5 characters
-      return res
-        .status(400)
-        .json({ message: "mobile_no greater than 5 characters" });
-    } else {
-      // checking if the Officer already exists in database
-      email_id = email_id.trim();
-      password = password.trim();
-      const company = await CompanyModel.findOne({ email_id: email_id });
-      const officer = await OfficerModel.findOne({ email_id: email_id });
-      if (officer || company) {
-        //Error: If the data already exist
-        return res.status(400).json({
-          message: "Officer or Company already Exists with this email id",
-        });
+      let email_id = tokenVerify.email_id.toLowerCase();
+
+      if (!username || !email_id || !mobile_no || !password || !college_name) {
+        //Error: anyone details not available
+        return res.status(400).json({ message: "Data Incomplete Error" });
+      } else if (!validator.isEmail(email_id)) {
+        //Error: Invalid Email id passed
+        return res.status(400).json({ message: "Invalid Email" });
+      } else if (password.length < 8) {
+        //Error: password less than 8 characters
+        return res
+          .status(400)
+          .json({ message: "password less than 8 characters" });
+      } else if (mobile_no.length < 5) {
+        //Error: mobile_no greater than 5 characters
+        return res
+          .status(400)
+          .json({ message: "mobile_no greater than 5 characters" });
       } else {
-        // alloting the index.
-        const lastOfficer = await OfficerModel.findOne().sort({ _id: -1 });
-        let index: number;
-
-        if (lastOfficer && lastOfficer.index === 0) {
-          // if mistake happens and index get set to 0 then next will be stored as 1
-          index = 1;
-        } else if (lastOfficer) {
-          // adding 1 to the previous officer index and storing it in our new officer
-          index = lastOfficer.index + 1;
-        } else {
-          index = 1; // Default index when no officer is found
-        }
-
-        // Password Hashing using bcrypt
-        const saltRounds = 10;
-        bcrypt
-          .hash(password, saltRounds)
-          .then((hashedPassword) => {
-            // finally creating and saving the officer
-            OfficerModel.create({
-              index: index,
-              username: username,
-              email_id: email_id,
-              password: hashedPassword,
-              mobile_no: mobile_no,
-              college_name: college_name,
-              subscribed_company: [],
-              cancelled_company: [],
-              subscribe_request_from_company: [],
-              subscribe_request_to_company: [],
-              college_details: [],
-            }).then((user) => {
-              //Success: then returning the Officer Id of the Officer.
-              return res.status(200).json({
-                message: "This is Officer Create Page",
-                data: user?._id,
-              });
-            });
-          })
-          .catch((e) => {
-            //Error: Problem in bcrypt (Hashing)
-            return res
-              .status(500)
-              .json({ message: "error while hashing the password" });
+        // checking if the Officer already exists in database
+        email_id = email_id.trim();
+        password = password.trim();
+        const company = await CompanyModel.findOne({ email_id: email_id });
+        const officer = await OfficerModel.findOne({ email_id: email_id });
+        if (officer || company) {
+          //Error: If the data already exist
+          return res.status(400).json({
+            message: "Officer or Company already Exists with this email id",
           });
+        } else {
+          // alloting the index.
+          const lastOfficer = await OfficerModel.findOne().sort({ _id: -1 });
+          let index: number;
+
+          if (lastOfficer && lastOfficer.index === 0) {
+            // if mistake happens and index get set to 0 then next will be stored as 1
+            index = 1;
+          } else if (lastOfficer) {
+            // adding 1 to the previous officer index and storing it in our new officer
+            index = lastOfficer.index + 1;
+          } else {
+            index = 1; // Default index when no officer is found
+          }
+
+          // Password Hashing using bcrypt
+          const saltRounds = 10;
+          bcrypt
+            .hash(password, saltRounds)
+            .then((hashedPassword) => {
+              // finally creating and saving the officer
+              OfficerModel.create({
+                index: index,
+                username: username,
+                email_id: email_id,
+                password: hashedPassword,
+                mobile_no: mobile_no,
+                college_name: college_name,
+                subscribed_company: [],
+                cancelled_company: [],
+                subscribe_request_from_company: [],
+                subscribe_request_to_company: [],
+                college_details: [],
+              }).then((user) => {
+                //Success: then returning the Officer Id of the Officer.
+                return res.status(200).json({
+                  message: "Officer Created Page Successfully",
+                });
+              });
+            })
+            .catch((e) => {
+              //Error: Problem in bcrypt (Hashing)
+              return res
+                .status(500)
+                .json({ message: "error while hashing the password" });
+            });
+        }
       }
+    } else {
+      // Error:
+      res.status(400).json({ message: "Cannot verify token" });
     }
   } catch (error: any) {
     //Error: If anything creates problem
@@ -314,22 +321,27 @@ export const findOfficerController = async (
       SecretKey
     ) as jwt.JwtPayload;
     if (tokenVerify) {
+      const officerId = await OfficerModel.exists({ _id: tokenVerify.data });
       // finding the officer by the ID got from the frontend
+      if (!officerId) {
+        let data = await OfficerModel.findById({
+          _id: tokenVerify.data,
+        }).select(" -password");
 
-      let data = await OfficerModel.findById({ _id: tokenVerify.data }).select(
-        " -password"
-      );
-
-      // checking if the officer exists or not
-      if (!data) {
-        //Error: Officer does not exist
-        return res.status(404).json({ message: "Officer not found" });
+        // checking if the officer exists or not
+        if (!data) {
+          //Error: Officer does not exist
+          return res.status(404).json({ message: "Officer not found" });
+        } else {
+          // Success: pass the data
+          return res.status(200).json({
+            message: "This is Officer findone Page",
+            data: data,
+          });
+        }
       } else {
-        // Success: pass the data
-        return res.status(200).json({
-          message: "This is Officer findone Page",
-          data: data,
-        });
+        // Error: Problem in verifying
+        return res.status(500).json({ message: "valid Officer not found." });
       }
     } else {
       // Error: Problem in verifying
@@ -352,18 +364,28 @@ export const getAllOfficerController = async (
     // verifying the token
     const bearerHeader = req.headers.authorization;
     const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(bearer.split(" ")[1], SecretKey);
+    const tokenVerify = jwt.verify(
+      bearer.split(" ")[1],
+      SecretKey
+    ) as jwt.JwtPayload;
     if (tokenVerify) {
-      // Collecing all officers and sending by removing some fields
-      let data = await OfficerModel.find().select(
-        "-password -college_details -subscribe_request_from_company -subscribed_company -cancelled_company -subscribe_request_to_company"
-      );
-      if (data.length !== 0) {
-        // Success: Data Found and send successfully
-        return res.json({
-          message: "This is Officer getAll page",
-          data: data,
-        });
+      const officerId = await OfficerModel.exists({ _id: tokenVerify.data });
+      // finding the officer by the ID got from the frontend
+      if (!officerId) {
+        // Collecing all officers and sending by removing some fields
+        let data = await OfficerModel.find().select(
+          "-password -college_details -subscribe_request_from_company -subscribed_company -cancelled_company -subscribe_request_to_company"
+        );
+        if (data.length !== 0) {
+          // Success: Data Found and send successfully
+          return res.json({
+            message: "This is Officer getAll page",
+            data: data,
+          });
+        } else {
+          // Error: Problem in verifying
+          return res.status(500).json({ message: "valid Officer not found." });
+        }
       } else {
         // Error: data not found
         return res.status(500).json({ message: "Officers not found" });

@@ -31,7 +31,7 @@ import {
   makeSelectedStudentsavailableFailed,
   confirmSelectedStudentsWithNoDateProvided,
   makeSelectedStudentsUnavailableConfirm,
-  verifyOfficerTwoStepValidation,
+  // verifyOfficerTwoStepValidation,
   confirmSelectedStudentsWithDates,
 } from "../controller/officer";
 
@@ -47,7 +47,7 @@ const upload = multer();
 router.post("/loginOfficer", loginOfficerController);
 
 // verify the token from frontend ROute
-router.post("/verifyOfficerTwoStepToken", verifyOfficerTwoStepValidation);
+// router.post("/verifyOfficerTwoStepToken", verifyOfficerTwoStepValidation);
 
 // verify the token from frontend ROute
 router.post("/verifyOfficerToken", verifyOfficerByToken);
