@@ -27,10 +27,13 @@ import {
   getAllCancelledRequests,
   getAllCompaniesByFilterInChunksWithSearch,
   getStudentDetailsbyDeptAndYearSeparatedAvaiability,
+  addCancelledRequestByOfficer,
   getAllSelectedStudentsByCompanies,
+  getCollegeDepartmentAndYears,
   makeSelectedStudentsavailableFailed,
   confirmSelectedStudentsWithNoDateProvided,
   makeSelectedStudentsUnavailableConfirm,
+  giveEmailToCompanyAndOfficerRegardingAccess,
   // verifyOfficerTwoStepValidation,
   confirmSelectedStudentsWithDates,
 } from "../controller/officer";
@@ -88,6 +91,9 @@ router.post("/getStudentDetails", upload.any(), getStudentDetailsbyDeptAndYear);
 // cancle request of company
 router.put("/addCancelledRequest", addCancelledRequest);
 
+// cancle request by officer
+router.put("/addCancelledRequestByOfficer", addCancelledRequestByOfficer);
+
 // add Request from officer to company
 router.post("/addSubscribeRequestToCompany", addSubscribeRequestToCompany);
 
@@ -111,6 +117,9 @@ router.get("/getAllSubscribedCompanies", getAllSubscribedCompanies);
 
 // get All Officers filtered with respect to AllSubscribedOfficers, AllRequestsbyCompany, AllRequestedOfficers
 router.get("/getAllCompanyByFilter", getAllCompanyByFilter);
+
+// get Department and year list for access in officer
+router.get("/getCollegeDepartmentAndYears", getCollegeDepartmentAndYears);
 
 // get Searched Companies with respect to AllSubscribedOfficers, AllRequestsbyCompany, AllRequestedOfficers
 router.post("/getCompaniesBySearch", getAllCompaniesByFilterInChunksWithSearch);
@@ -137,6 +146,12 @@ router.put(
 router.put(
   "/confirmSelectedStudentsWithDates",
   confirmSelectedStudentsWithDates
+);
+
+// send email to company and officer regarding Access
+router.put(
+  "/giveEmailToCompanyAndOfficerRegardingAccess",
+  giveEmailToCompanyAndOfficerRegardingAccess
 );
 
 export default router;

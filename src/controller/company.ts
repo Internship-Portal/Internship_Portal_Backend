@@ -3,6 +3,7 @@ import validator from "validator";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { shuffle } from "lodash";
+import nodemailer from "nodemailer";
 
 const SecretKey = "lim4yAey6K78dA8N1yKof4Stp9H4A";
 import CompanyModel, { Company } from "../models/company";
@@ -571,12 +572,6 @@ export const addCancelledRequest = async (req: Request, res: Response) => {
         .json({ message: "Problem in verifying the token" });
     }
 
-    const companyExist = await CompanyModel.exists({ _id: tokenVerify.data });
-    if (!companyExist) {
-      // Error: Problem in verifying the token
-      return res.status(500).json({ message: "valid Company not found. " });
-    }
-
     // Find the officer
     const { officer_id, message } = req.body;
 
@@ -585,7 +580,7 @@ export const addCancelledRequest = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Incomplete Data" });
     }
 
-    const officer = await OfficerModel.findById(officer_id);
+    const officer = await OfficerModel.findById({ _id: officer_id });
 
     if (!officer) {
       // Error: Officer not found
@@ -593,23 +588,35 @@ export const addCancelledRequest = async (req: Request, res: Response) => {
     }
 
     // Find the company
-    const company = await CompanyModel.findById(tokenVerify.data);
+    const company = await CompanyModel.findById({ _id: tokenVerify.data });
 
     if (!company) {
       // Error: Company not found
       return res.status(400).json({ message: "Company not found" });
     } else {
+      let found_in_Officer = false;
+      let found_in_Company = false;
       // Remove the requested data from officer
       officer.subscribe_request_to_company =
-        officer.subscribe_request_to_company.filter(
-          (obj) => obj.company_id !== tokenVerify.data
-        );
+        officer.subscribe_request_to_company.filter((obj) => {
+          if (obj.company_id === tokenVerify.data) {
+            found_in_Officer = true;
+          }
+          return obj.company_id !== tokenVerify.data;
+        });
 
       // Remove the requested data from company
       company.subscribe_request_from_officer =
-        company.subscribe_request_from_officer.filter(
-          (obj) => obj.officer_id !== officer_id
-        );
+        company.subscribe_request_from_officer.filter((obj) => {
+          if (obj.officer_id === officer_id) {
+            found_in_Company = true;
+          }
+          return obj.officer_id !== officer_id;
+        });
+
+      if (!found_in_Company || !found_in_Officer) {
+        return res.status(400).json({ message: "Invalid Request" });
+      }
 
       // Add cancelled requested data to the officer
       const cancelOfficer = {
@@ -618,6 +625,7 @@ export const addCancelledRequest = async (req: Request, res: Response) => {
         message: message,
         username: company.username,
         company_name: company.company_name,
+        cancelled_by: "company",
       };
       officer.cancelled_company.push(cancelOfficer);
 
@@ -628,8 +636,11 @@ export const addCancelledRequest = async (req: Request, res: Response) => {
         message: message,
         college_name: officer.college_name,
         username: officer.username,
+        cancelled_by: "company",
       };
       company.cancelled_officer.push(cancelCompany);
+
+      console.log(officer.cancelled_company, company.cancelled_officer);
 
       // Save changes
       await officer.save();
@@ -646,8 +657,330 @@ export const addCancelledRequest = async (req: Request, res: Response) => {
   }
 };
 
-// selected students by companies without dates
+export const addCancelledRequestByCompany = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const bearerHeader = req.headers.authorization;
+    const bearer: string = bearerHeader as string;
+    const tokenVerify = jwt.verify(
+      bearer.split(" ")[1],
+      SecretKey
+    ) as jwt.JwtPayload;
+    if (tokenVerify) {
+      // Find the data in company
+      const { officer_id, message } = req.body;
+      const company = await CompanyModel.findById({ _id: tokenVerify.data });
+      if (company) {
+        const officer = await OfficerModel.findById({ _id: officer_id });
+        if (officer) {
+          let found_in_Officer = false,
+            found_in_Company = false;
+          // remove the requested data from officer
+          officer.subscribe_request_from_company =
+            officer.subscribe_request_from_company.filter((obj) => {
+              if (obj.company_id === tokenVerify.data) {
+                found_in_Officer = true;
+              }
+              return obj.company_id !== tokenVerify.data;
+            });
 
+          // remove the requested data from company
+          company.subscribe_request_to_officer =
+            company.subscribe_request_to_officer.filter((obj) => {
+              if (obj.officer_id === officer_id) {
+                found_in_Company = true;
+              }
+              return obj.officer_id !== officer_id;
+            });
+
+          if (!found_in_Company || !found_in_Officer) {
+            return res.status(400).json({ message: "Invalid Request" });
+          }
+
+          // add cancelled requested data to the officer
+          const cancelOfficer = {
+            company_id: tokenVerify.data,
+            index: company.index,
+            message: message,
+            username: company.username,
+            company_name: company.company_name,
+            cancelled_by: "company",
+          };
+          officer.cancelled_company.push(cancelOfficer);
+
+          // add cancelled requested data to the company
+          const cancelCompany = {
+            officer_id: officer_id,
+            index: officer.index,
+            message: message,
+            college_name: officer.college_name,
+            username: officer.username,
+            cancelled_by: "company",
+          };
+          company.cancelled_officer.push(cancelCompany);
+
+          // save
+          const savedCompany = await company.save();
+          const savedOfficer = await officer.save();
+
+          if (savedCompany && savedOfficer) {
+            // Success :
+            return res.status(200).json({
+              message: "Cancelled the company request",
+            });
+          } else {
+            // Error:
+            return res.status(500).json({ message: "Cannot cancel request" });
+          }
+        } else {
+          // Error:
+          return res.status(404).json({ message: "Officer not found" });
+        }
+      } else {
+        // Error:
+        return res.status(400).json({ message: "Company not found" });
+      }
+    } else {
+      // Error:
+      return res
+        .status(500)
+        .json({ message: "Problem in verifying the token" });
+    }
+  } catch (e) {
+    // Error:
+    return res.status(500).json({ message: "Server Error" });
+  }
+};
+
+// const request = async () => {
+//   const officer = await OfficerModel.findById({
+//     _id: "64943d276c14235b2ccc6cbd",
+//   });
+//   const company = await CompanyModel.findById({
+//     _id: "64944d6fd614176f5a947e91",
+//   });
+//   if (!officer || !company) {
+//     return;
+//   } else {
+//     sendEmailByCompanyAction(officer, company, "ENTC", 2024, null, null, [
+//       {
+//         index: 1,
+//         name: "Dummy_Student_Name1",
+//         email_id: "dummy_student_email1@gmail.com",
+//         college_name: "Dummy_College_Name",
+//         location: "Pune",
+//         mobile_no: "7789456122",
+//         branch: "Dummy_Department",
+//         roll_no: "vrght",
+//         achievements: [
+//           "Dummy_Achievement_1,Dummy_Achievement_2,Dummy_Achievement_3,Dummy_Achievement_4",
+//         ],
+//         skills: ["Dummy_Skills_1,Dummy_Skills_2,Dummy_Skills_3,Dummy_Skills_4"],
+//         hobbies: [
+//           "Dummy_Hobbies_1,Dummy_Hobbies_2,Dummy_Hobbies_3,Dummy_Hobbies_4",
+//         ],
+//         cgpa: 7.89,
+//         year_batch: 2024,
+//         backlog: false,
+//         linked_profile_link: "https://www.linkedin.com/",
+//         github_profile_link: "https://github.com/",
+//         leetcode_profile: "https://leetcode.com/",
+//         geeksforgeeks_profile: "https://geeksforgeeks.org/",
+//         tenth_percentage: 84.96,
+//         twelve_percentage: 77,
+//         diploma_percentage: 0,
+//         _id: "649449aa3164d274ecf676fd",
+//       },
+//       {
+//         index: 2,
+//         name: "Dummy_Student_Name2",
+//         email_id: "dummy_student_email1@gmail.com",
+//         college_name: "Dummy_College_Name",
+//         location: "Pune",
+//         mobile_no: "9175210152",
+//         branch: "Dummy_Department",
+//         roll_no: "eae",
+//         achievements: [
+//           "Dummy_Achievement_1,Dummy_Achievement_2,Dummy_Achievement_3,Dummy_Achievement_5",
+//         ],
+//         skills: ["Dummy_Skills_1,Dummy_Skills_2,Dummy_Skills_3,Dummy_Skills_5"],
+//         hobbies: [
+//           "Dummy_Hobbies_1,Dummy_Hobbies_2,Dummy_Hobbies_3,Dummy_Hobbies_5",
+//         ],
+//         cgpa: 7.55,
+//         year_batch: 2024,
+//         backlog: false,
+//         linked_profile_link: "https://www.linkedin.com/",
+//         github_profile_link: "https://github.com/",
+//         leetcode_profile: "https://leetcode.com/",
+//         geeksforgeeks_profile: "https://geeksforgeeks.org/",
+//         tenth_percentage: 81.96,
+//         twelve_percentage: 78,
+//         diploma_percentage: 0,
+//         _id: "649449aa3164d274ecf676fe",
+//       },
+//       {
+//         index: 3,
+//         name: "Dummy_Student_Name3",
+//         email_id: "dummy_student_email1@gmail.com",
+//         college_name: "Dummy_College_Name",
+//         location: "Pune",
+//         mobile_no: "9175210153",
+//         branch: "Dummy_Department",
+//         roll_no: "cac",
+//         achievements: [
+//           "Dummy_Achievement_1,Dummy_Achievement_2,Dummy_Achievement_3,Dummy_Achievement_6",
+//         ],
+//         skills: ["Dummy_Skills_1,Dummy_Skills_2,Dummy_Skills_3,Dummy_Skills_6"],
+//         hobbies: [
+//           "Dummy_Hobbies_1,Dummy_Hobbies_2,Dummy_Hobbies_3,Dummy_Hobbies_6",
+//         ],
+//         cgpa: 9.99,
+//         year_batch: 2024,
+//         backlog: false,
+//         linked_profile_link: "https://www.linkedin.com/",
+//         github_profile_link: "https://github.com/",
+//         leetcode_profile: "https://leetcode.com/",
+//         geeksforgeeks_profile: "https://geeksforgeeks.org/",
+//         tenth_percentage: 24.96,
+//         twelve_percentage: 47,
+//         diploma_percentage: 0,
+//         _id: "649449aa3164d274ecf676ff",
+//       },
+//     ]);
+//   }
+// };
+
+// request().then((e) => {
+//   console.log("Done");
+// });
+
+export const sendEmailByCompanyAction = (
+  Officer: Officer,
+  Company: Company,
+  department_name: string,
+  year_batch: number,
+  start_date: Date | null,
+  end_date: Date | null,
+  selected_students: any[]
+) => {
+  return new Promise((resolve, reject) => {
+    // configure the nodemailer
+    var transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: "teamgenshinofficial@gmail.com",
+        pass: "wkrivbrwloojnpzb",
+      },
+    });
+
+    var documentHTML = selected_students
+      .map((student) => {
+        const { name, roll_no } = student;
+        return `
+          <div style="margin-bottom: 20px;">
+            <h3 style="color: #00466a; margin-bottom: 5px;">Name: ${name}</h3>
+            <p style="margin: 0; font-size: 0.9em;">Roll No: ${roll_no}</p>
+          </div>
+        `;
+      })
+      .join("");
+
+    let mail_configs;
+
+    mail_configs = {
+      from: "teamgenshinofficial@gmail.com",
+      to: [Officer.email_id, Company.email_id],
+      subject: `Internship Portal - Students Selected by ${Company.company_name}`,
+      html: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Internship Portal - Students Selected Email</title>
+</head>
+<body>
+<div style="font-family: Helvetica, Arial, sans-serif; min-width: 1000px; overflow: auto; line-height: 2;">
+  <div style="margin: 50px auto; width: 70%; padding: 20px 0;">
+    <div style="border-bottom: 1px solid #eee;">
+      <a href="" style="font-size: 1.4em; color: #00466a; text-decoration: none; font-weight: 600;">Internship Portal</a>
+    </div>
+    <p style="font-size: 1.1em;">Hi users,</p>
+    <p>Company representative ${Company.username} from ${Company.company_name} has selected a list of students from the Department of ${department_name}, batch ${year_batch}, at ${Officer.college_name}, which is handled by ${Officer.username}.</p>
+    <p>The Department Details are listed out with respect to the Year-Batch below. Check it out.</p>
+    ${documentHTML}
+    <p style="font-size: 0.9em;">Regards,<br />Internship Portal</p>
+    <hr style="border: none; border-top: 1px solid #eee;" />
+    <div style="float: right; padding: 8px 0; color: #aaa; font-size: 0.8em; line-height: 1; font-weight: 300;">
+      <p>Internship Portal Inc</p>
+      <p>Pimpri Chinchwad</p>
+      <p>Pune</p>
+    </div>
+  </div>
+</div>
+</body>
+</html>`,
+    };
+
+    if (end_date && start_date) {
+      mail_configs = {
+        from: "teamgenshinofficial@gmail.com",
+        to: [Officer.email_id, Company.email_id],
+        subject: `Internship Portal - Students Selected by ${Company.company_name}`,
+        html: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Internship Portal - Students Selected Email</title>
+</head>
+<body>
+<div style="font-family: Helvetica, Arial, sans-serif; min-width: 1000px; overflow: auto; line-height: 2;">
+  <div style="margin: 50px auto; width: 70%; padding: 20px 0;">
+    <div style="border-bottom: 1px solid #eee;">
+      <a href="" style="font-size: 1.4em; color: #00466a; text-decoration: none; font-weight: 600;">Internship Portal</a>
+    </div>
+    <p style="font-size: 1.1em;">Hi users,</p>
+    <p>Company representative ${Company.username} from ${
+          Company.company_name
+        } selected a list of students from the Department of ${department_name}, batch ${year_batch}, starting from ${start_date
+          .toISOString()
+          .split("T")[0]
+          .replace(/-/g, "/")} to ${end_date
+          .toISOString()
+          .split("T")[0]
+          .replace(/-/g, "/")}. The selection was made from ${
+          Officer.college_name
+        }, and it is handled by ${Officer.username}.</p>
+    <p>The Department Details are listed out with respect to the Year-Batch below. Check it out.</p>
+    ${documentHTML}
+    <p style="font-size: 0.9em;">Regards,<br />Internship Portal</p>
+    <hr style="border: none; border-top: 1px solid #eee;" />
+    <div style="float: right; padding: 8px 0; color: #aaa; font-size: 0.8em; line-height: 1; font-weight: 300;">
+      <p>Internship Portal Inc</p>
+      <p>Pimpri Chinchwad</p>
+      <p>Pune</p>
+    </div>
+  </div>
+</div>
+</body>
+</html>`,
+      };
+    }
+
+    // Send the mail to the gmails.
+    transporter.sendMail(mail_configs, function (error, info) {
+      if (error) {
+        // Error: error found
+        return reject({ message: `An error has occurred`, error: error });
+      }
+      // Success: Email Sent
+      return resolve({ message: "Email sent successfully" });
+    });
+  });
+};
+
+// selected students by companies without dates
 export const selectedStudentsByCompaniesWithoutDates = async (
   req: Request,
   res: Response
@@ -746,12 +1079,29 @@ export const selectedStudentsByCompaniesWithoutDates = async (
               const savedCompany = await verifyCompany.save();
               const savedOfficer = await verifyOfficer.save();
 
+              let successfully_send = false;
+
+              sendEmailByCompanyAction(
+                verifyOfficer,
+                verifyCompany,
+                department_name,
+                year_batch,
+                null,
+                null,
+                selected_students
+              )
+                .then((response) => {
+                  // Success
+                  successfully_send = true;
+                })
+                .catch((error) => (successfully_send = false));
               // Success: Data set Successfully
               return res.status(200).json({
                 message: "Data set Successfully",
                 data: {
                   company: savedCompany,
                   officer: savedOfficer,
+                  mailSend: successfully_send ? "Email Sent" : "Email not Sent",
                 },
               });
             }
@@ -771,140 +1121,160 @@ export const selectedStudentsByCompaniesWithoutDates = async (
 };
 
 // selected students by companies with dates
-
 export const selectedStudentsByCompaniesWithDates = async (
   req: Request,
   res: Response
 ) => {
-  // try {
-  const bearerHeader = req.headers.authorization;
-  const bearer: string = bearerHeader as string;
-  const tokenVerify = jwt.verify(
-    bearer.split(" ")[1],
-    SecretKey
-  ) as jwt.JwtPayload;
-  if (tokenVerify) {
-    const {
-      officer_id,
-      department_name,
-      year_batch,
-      start_date,
-      end_date,
-      selected_students,
-    }: {
-      officer_id: string;
-      department_name: string;
-      year_batch: number;
-      start_date: Date;
-      end_date: Date;
-      selected_students: Students[];
-    } = req.body;
-    const company_id = tokenVerify.data;
-    if (
-      !officer_id ||
-      !company_id ||
-      !department_name ||
-      !year_batch ||
-      !start_date ||
-      !end_date ||
-      selected_students.length === 0
-    ) {
-      // error:
-      return res.status(400).json({ message: "Incomplete Data" });
-    } else {
-      // confirm the company and officer is both subscribed
-      const verifyOfficer = await OfficerModel.findById({ _id: officer_id });
-      const verifyCompany = await CompanyModel.findById({ _id: company_id });
-
-      // check if the end date is greater than the current date and start date is less than end date
-      const currentDate = new Date();
-      const endDate = new Date(end_date);
-      const startDate = new Date(start_date);
-      if (endDate <= currentDate || startDate > endDate) {
-        return res.status(400).json({ message: "Invalid Dates" });
+  try {
+    const bearerHeader = req.headers.authorization;
+    const bearer: string = bearerHeader as string;
+    const tokenVerify = jwt.verify(
+      bearer.split(" ")[1],
+      SecretKey
+    ) as jwt.JwtPayload;
+    if (tokenVerify) {
+      const {
+        officer_id,
+        department_name,
+        year_batch,
+        start_date,
+        end_date,
+        selected_students,
+      }: {
+        officer_id: string;
+        department_name: string;
+        year_batch: number;
+        start_date: Date;
+        end_date: Date;
+        selected_students: Students[];
+      } = req.body;
+      const company_id = tokenVerify.data;
+      if (
+        !officer_id ||
+        !company_id ||
+        !department_name ||
+        !year_batch ||
+        !start_date ||
+        !end_date ||
+        selected_students.length === 0
+      ) {
+        // error:
+        return res.status(400).json({ message: "Incomplete Data" });
       } else {
-        if (!verifyOfficer || !verifyCompany) {
-          // error:
-          return res
-            .status(400)
-            .json({ message: "Officer or company not found" });
+        // confirm the company and officer is both subscribed
+        const verifyOfficer = await OfficerModel.findById({ _id: officer_id });
+        const verifyCompany = await CompanyModel.findById({ _id: company_id });
+
+        // check if the end date is greater than the current date and start date is less than end date
+        const currentDate = new Date();
+        const endDate = new Date(end_date);
+        const startDate = new Date(start_date);
+        if (endDate <= currentDate || startDate > endDate) {
+          return res.status(400).json({ message: "Invalid Dates" });
         } else {
-          let foundInCompany = false;
-          let foundInOfficer = false;
-          let foundInCompanySubscribed = false;
-          // then add the data into both the schemas
-          let data: selectedStudentsInterface = {
-            department_name: department_name,
-            year_batch: year_batch,
-            end_date: end_date,
-            start_date: start_date,
-            confirmed: false,
-            studentsdetails: selected_students,
-          };
+          if (!verifyOfficer || !verifyCompany) {
+            // error:
+            return res
+              .status(400)
+              .json({ message: "Officer or company not found" });
+          } else {
+            let foundInCompany = false;
+            let foundInOfficer = false;
+            let foundInCompanySubscribed = false;
+            // then add the data into both the schemas
+            let data: selectedStudentsInterface = {
+              department_name: department_name,
+              year_batch: year_batch,
+              end_date: end_date,
+              start_date: start_date,
+              confirmed: false,
+              studentsdetails: selected_students,
+            };
 
-          // add the data in officer and check if the data exist in both or not
+            // add the data in officer and check if the data exist in both or not
 
-          verifyOfficer.subscribed_company.filter((obj) => {
-            if (obj.company_id === company_id) {
-              foundInOfficer = true;
-              if (
-                obj.selectedstudents.some((student) => {
-                  return (
-                    student.department_name === department_name &&
-                    student.year_batch === year_batch
-                  );
-                }) === false
-              ) {
-                obj.selectedstudents.push(data);
-              } else {
-                foundInCompanySubscribed = true;
+            verifyOfficer.subscribed_company.filter((obj) => {
+              if (obj.company_id === company_id) {
+                foundInOfficer = true;
+                if (
+                  obj.selectedstudents.some((student) => {
+                    return (
+                      student.department_name === department_name &&
+                      student.year_batch === year_batch
+                    );
+                  }) === false
+                ) {
+                  obj.selectedstudents.push(data);
+                } else {
+                  foundInCompanySubscribed = true;
+                  return res.status(400).json({
+                    message: "Data about selected students already exists",
+                  });
+                }
+              }
+            });
+
+            if (!foundInOfficer || !foundInCompanySubscribed) {
+              // add the data in company and check if the data exist in both or not
+              for (const obj of verifyCompany.subscribed_officer) {
+                if (obj.officer_id === officer_id) {
+                  foundInCompany = true;
+                  foundInCompanySubscribed = true;
+                  obj.selectedstudents.push(data);
+                  break; // Exit the loop after finding a match
+                }
+              }
+              if (!foundInCompany || !foundInOfficer) {
                 return res.status(400).json({
-                  message: "Data about selected students already exists",
+                  message: "Invalid Subscription",
+                });
+              } else {
+                // save them
+                const savedCompany = await verifyCompany.save();
+                const savedOfficer = await verifyOfficer.save();
+
+                let successfully_send = false;
+
+                sendEmailByCompanyAction(
+                  verifyOfficer,
+                  verifyCompany,
+                  department_name,
+                  year_batch,
+                  start_date,
+                  end_date,
+                  selected_students
+                )
+                  .then((response) => {
+                    // Success
+                    successfully_send = true;
+                  })
+                  .catch((error) => (successfully_send = false));
+                // Success: Data set Successfully
+                return res.status(200).json({
+                  message: "Data set Successfully",
+                  data: {
+                    company: savedCompany,
+                    officer: savedOfficer,
+                    mailSend: successfully_send
+                      ? "Email Sent"
+                      : "Email not Sent",
+                  },
                 });
               }
-            }
-          });
-
-          if (!foundInOfficer || !foundInCompanySubscribed) {
-            // add the data in company and check if the data exist in both or not
-            for (const obj of verifyCompany.subscribed_officer) {
-              if (obj.officer_id === officer_id) {
-                foundInCompany = true;
-                foundInCompanySubscribed = true;
-                obj.selectedstudents.push(data);
-                break; // Exit the loop after finding a match
-              }
-            }
-            if (!foundInCompany || !foundInOfficer) {
-              return res.status(400).json({
-                message: "Invalid Subscription",
-              });
-            } else {
-              // save them
-              const savedCompany = await verifyCompany.save();
-              const savedOfficer = await verifyOfficer.save();
-
-              // Success: Data set Successfully
-              return res.status(200).json({
-                message: "Data set Successfully",
-                data: {
-                  company: savedCompany,
-                  officer: savedOfficer,
-                },
-              });
             }
           }
         }
       }
+    } else {
+      // error:
+      return res
+        .status(500)
+        .json({ message: "Problem in verifying the token" });
     }
-  } else {
+  } catch (e) {
     // error:
-    return res.status(500).json({ message: "Problem in verifying the token" });
+    return res.status(500).json({ message: "Server Error" });
   }
-  // } catch (e) {
-  //   // error:
-  //   return res.status(500).json({ message: "Server Error" });
-  // }
 };
 
 // get Student details by department and year_batch through company
@@ -1157,7 +1527,6 @@ export const getAllSubscribedOfficers = async (req: Request, res: Response) => {
     SecretKey
   ) as jwt.JwtPayload;
   if (tokenVerify) {
-    console.log(tokenVerify);
     const foundCompany = await CompanyModel.findById({
       _id: tokenVerify.data,
     });

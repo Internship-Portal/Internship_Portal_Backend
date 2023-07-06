@@ -9,6 +9,7 @@ import {
   addSubscribeRequestToOfficer,
   addSubscribedOfficerFromCompany,
   addCancelledRequest,
+  addCancelledRequestByCompany,
   getStudentDetailsbyDeptAndYear,
   getAllSubscribedOfficers,
   getAllCancelledRequests,
@@ -41,8 +42,6 @@ router.get("/getAll", getAllCompanyController);
 // Delete Company by Id
 router.delete("/deleteCompany", deleteCompanyController);
 
-// Check the below routes
-
 // subscribe the officer
 router.post("/addSubscribeRequestToOfficer", addSubscribeRequestToOfficer);
 
@@ -51,6 +50,9 @@ router.put("/addSubscribedOfficerFromCompany", addSubscribedOfficerFromCompany);
 
 // cancle request of officer
 router.put("/addCancelledRequest", addCancelledRequest);
+
+// cancle request to officer
+router.put("/addCancelledRequestByCompany", addCancelledRequestByCompany);
 
 // get Officer Details
 router.put("/getStudentDetailsbyDeptAndYear", getStudentDetailsbyDeptAndYear);

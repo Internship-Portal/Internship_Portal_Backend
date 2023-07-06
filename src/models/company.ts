@@ -10,7 +10,7 @@ import {
 
 export interface batchwiseDepartmentsInterface {
   year_batch: number;
-  departments: [string];
+  departments: string[];
 }
 
 // ---------------------------------- batchwise department interface
@@ -22,6 +22,7 @@ export interface cancelledOfficer {
   username: string;
   college_name: string;
   message: string;
+  cancelled_by: string;
 }
 // ---------------------------------------------- subscribedOfficer Interface
 
@@ -78,6 +79,9 @@ const cancelledOfficer = new Schema<cancelledOfficer>({
     type: String,
   },
   college_name: {
+    type: String,
+  },
+  cancelled_by: {
     type: String,
   },
 });

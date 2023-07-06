@@ -48,6 +48,7 @@ export interface cancelledCompany {
   username: string;
   company_name: string;
   message: string;
+  cancelled_by: string;
 }
 
 // ----------------------------------- cancelledCompany Interface
@@ -55,6 +56,7 @@ export interface cancelledCompany {
 // -------------------------------------------- Students Interface
 
 export interface Students {
+  _id?: ObjectId;
   index: number;
   name: string;
   email_id: string;
@@ -326,6 +328,9 @@ export const cancelledCompany = new Schema<cancelledCompany>({
     type: String,
   },
   company_name: {
+    type: String,
+  },
+  cancelled_by: {
     type: String,
   },
 });
