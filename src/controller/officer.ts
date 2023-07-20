@@ -72,7 +72,7 @@ export const loginOfficerController = async (req: Request, res: Response) => {
         bcrypt.compare(password, hashedPassword).then(async (results) => {
           if (results) {
             // Converting the id and email
-            const tokenToSave = jwt.sign({ data: data._id }, SecretKey);
+            const tokenToSave = jwt.sign({ data: data._id.toString() }, SecretKey);
 
             return res.status(200).json({
               message: "Login Successful",
@@ -1382,13 +1382,13 @@ export const addSubscribedOfficerFromOfficer = async (
               // remove from the request send by officer
               officer.subscribe_request_from_company =
                 officer.subscribe_request_from_company.filter(
-                  (obj) => obj.company_id !== company_id
+                  (obj) => obj.company_id !== company_id.toString()
                 );
 
               // remove from the officer from which the request has come
               company.subscribe_request_to_officer =
                 company.subscribe_request_to_officer.filter(
-                  (obj) => obj.officer_id !== tokenVerify.data
+                  (obj) => obj.officer_id !== tokenVerify.data.toString()
                 );
 
               // add to the subscribedOfficer schema of company
@@ -1464,6 +1464,7 @@ export const giveAccessToCompanies = async (req: Request, res: Response) => {
     if (tokenVerify) {
       const officer_id = tokenVerify.data;
       const { company_id, access } = req.body;
+      console.log(company_id, access);
       if (!company_id || !access) {
         // Error:
         return res.status(400).json({ message: "Incomplete Data" });
