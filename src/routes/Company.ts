@@ -7,10 +7,10 @@ import {
   verifyCompanyByToken,
   loginCompanyController,
   addSubscribeRequestToOfficer,
-  addSubscribedOfficerFromCompany,
+  // addSubscribedOfficerFromCompany,
   addCancelledRequest,
   addCancelledRequestByCompany,
-  getStudentDetailsbyDeptAndYear,
+  getStudentDetailsbyDeptAndYearByCompany,
   getAllSubscribedOfficers,
   getAllCancelledRequests,
   getAllRequestsbyCompany,
@@ -46,7 +46,7 @@ router.delete("/deleteCompany", deleteCompanyController);
 router.post("/addSubscribeRequestToOfficer", addSubscribeRequestToOfficer);
 
 // remove officer details from the request schema where company accept the request
-router.put("/addSubscribedOfficerFromCompany", addSubscribedOfficerFromCompany);
+// router.put("/addSubscribedOfficerFromCompany", addSubscribedOfficerFromCompany);
 
 // cancle request of officer
 router.put("/addCancelledRequest", addCancelledRequest);
@@ -55,7 +55,10 @@ router.put("/addCancelledRequest", addCancelledRequest);
 router.put("/addCancelledRequestByCompany", addCancelledRequestByCompany);
 
 // get Officer Details
-router.put("/getStudentDetailsbyDeptAndYear", getStudentDetailsbyDeptAndYear);
+router.put(
+  "/getStudentDetailsbyDeptAndYear",
+  getStudentDetailsbyDeptAndYearByCompany
+);
 
 // get All Subscribed Officers
 router.get("/getAllSubscribedOfficers", getAllSubscribedOfficers);

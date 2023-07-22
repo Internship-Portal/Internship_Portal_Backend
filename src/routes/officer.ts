@@ -19,7 +19,7 @@ import {
   addCancelledRequest,
   addSubscribeRequestToCompany,
   addSubscribedOfficerFromOfficer,
-  giveAccessToCompanies,
+  // giveAccessToCompanies,
   getAllRequestedCompanies,
   getAllSubscribedCompanies,
   getAllRequestsbyOfficer,
@@ -34,6 +34,7 @@ import {
   confirmSelectedStudentsWithNoDateProvided,
   makeSelectedStudentsUnavailableConfirm,
   giveEmailToCompanyAndOfficerRegardingAccess,
+  getAllStudentsAccordingToAchievementsAndSkills,
   // verifyOfficerTwoStepValidation,
   confirmSelectedStudentsWithDates,
 } from "../controller/officer";
@@ -101,7 +102,7 @@ router.post("/addSubscribeRequestToCompany", addSubscribeRequestToCompany);
 router.put("/addSubscribedOfficerFromOfficer", addSubscribedOfficerFromOfficer);
 
 // give access to companies by passing access and company_id
-router.put("/giveAccessToCompanies", giveAccessToCompanies);
+// router.put("/giveAccessToCompanies", giveAccessToCompanies);
 
 // get All Requested companies details
 router.get("/getAllRequestedCompanies", getAllRequestedCompanies);
@@ -152,6 +153,11 @@ router.put(
 router.put(
   "/giveEmailToCompanyAndOfficerRegardingAccess",
   giveEmailToCompanyAndOfficerRegardingAccess
+);
+
+router.put(
+  "/getSearchStudents",
+  getAllStudentsAccordingToAchievementsAndSkills
 );
 
 export default router;

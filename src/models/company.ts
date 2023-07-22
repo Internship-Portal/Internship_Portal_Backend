@@ -1,10 +1,14 @@
 import { model, Schema, Document, Types } from "mongoose";
-import {
-  Students,
-  StudentsSchema,
-  selectedStudents,
-  selectedStudentsInterface,
-} from "./officer";
+import { StudentsSchema, selectedStudents, Students } from "./officer";
+
+export interface selectedStudentsInterface {
+  department_name: string;
+  year_batch: number;
+  start_date: Date | null;
+  end_date: Date | null;
+  confirmed: boolean;
+  student_details: Students[];
+}
 
 // ---------------------------------- batchwise department interface
 
@@ -33,7 +37,7 @@ export interface subscribedOfficer {
   college_name: string;
   index: number;
   message: string;
-  access: batchwiseDepartmentsInterface[];
+  selectedbycompany: boolean;
   selectedstudents: selectedStudentsInterface[];
 }
 // ---------------------------------------------- subscribedOfficer Interface
@@ -103,7 +107,7 @@ export const batchWiseDepartments = new Schema<batchwiseDepartmentsInterface>({
 
 // ---------------------------------------------- subscribedOfficer Schema
 
-const subscribedOfficer = new Schema<subscribedOfficer>({
+export const subscribedOfficerSchema = new Schema<subscribedOfficer>({
   officer_id: {
     type: String,
   },
@@ -116,8 +120,8 @@ const subscribedOfficer = new Schema<subscribedOfficer>({
   college_name: {
     type: String,
   },
-  access: {
-    type: [batchWiseDepartments],
+  selectedbycompany: {
+    type: Boolean,
   },
   message: {
     type: String,
@@ -179,7 +183,7 @@ const CompanySchema = new Schema<Company>({
     type: [subscribeRequest],
   },
   subscribed_officer: {
-    type: [subscribedOfficer],
+    type: [subscribedOfficerSchema],
   },
   cancelled_officer: {
     type: [cancelledOfficer],

@@ -5,7 +5,6 @@ import csvtojson from "csvtojson";
 import { promisify } from "util";
 import fs from "fs";
 import bcrypt from "bcrypt";
-import { shuffle } from "lodash";
 import jwt from "jsonwebtoken";
 import nodemailer from "nodemailer";
 const SecretKey = "lim4yAey6K78dA8N1yKof4Stp9H4A";
@@ -21,9 +20,13 @@ import CompanyModel, {
   Company,
   batchwiseDepartmentsInterface,
   subscribedOfficer,
+  subscribedOfficerSchema,
 } from "../models/company";
 import verificationModel from "../models/verification";
 import { sendEmail } from "./otp";
+import mongoose from "mongoose";
+import connects from "../config/db";
+import { MongoClient } from "mongodb";
 
 // Delete the upload folder that is created to upload a CSV
 const deleteFolder = (folderPath: string) => {
@@ -794,6 +797,42 @@ export const deleteOneStudentDetails = async (req: Request, res: Response) => {
   }
 };
 
+const createStudentsIndexing = async (
+  officer: Officer,
+  department: string,
+  year_batch: number
+): Promise<void> => {
+  try {
+    const client = new MongoClient(
+      "mongodb+srv://admin:admin@imdb.11npizj.mongodb.net"
+    );
+    await client.connect();
+
+    const db = client.db("Internship_Portal"); // Replace 'yourDatabaseName' with your actual database name
+    const officerCollection = db.collection("officers"); // Replace 'officers' with the name of your collection
+
+    // Extract the college_details index where department_name matches
+    const collegeDetailsIndex = officer.college_details.findIndex(
+      (details: any) =>
+        details.department_name === department &&
+        details.year_batch === year_batch
+    );
+
+    // Access the college_details subdocument and create the index for student_details field
+    await officerCollection.createIndex(
+      {
+        [`college_details.${collegeDetailsIndex}.student_details.achievements`]: 1,
+        [`college_details.${collegeDetailsIndex}.student_details.skills`]: 1,
+      },
+      { background: true } // Optional: You can specify additional index options
+    );
+
+    await client.close();
+  } catch (error) {
+    console.error("Error creating index:", error);
+  }
+};
+
 // Access the CSV file provided by frontend and convert it to the JSON format
 
 export const convertStudentsCSVtoJSON = async (req: Request, res: Response) => {
@@ -813,7 +852,7 @@ export const convertStudentsCSVtoJSON = async (req: Request, res: Response) => {
 
       // Checking for the officer details in database
       // converting the csv file to JSON
-      let newStudentDetails: Students[];
+      let newStudentDetails;
 
       // "promisify" function from the util module to convert the upload function into a promise
       const uploadPromise = promisify(upload);
@@ -865,6 +904,15 @@ export const convertStudentsCSVtoJSON = async (req: Request, res: Response) => {
 
             newStudentDetails.map((e, i) => {
               e.index = i + 1;
+              if (
+                e.internship_start_date !== null &&
+                e.internship_end_date !== null &&
+                e.internship_start_date.length !== 0 &&
+                e.internship_end_date.length !== 0
+              ) {
+                e.internship_start_date = new Date(e.internship_start_date);
+                e.internship_end_date = new Date(e.internship_end_date);
+              }
             });
 
             // if departmentname and year batch exists or not
@@ -876,7 +924,7 @@ export const convertStudentsCSVtoJSON = async (req: Request, res: Response) => {
             const newDepartment: Department = {
               department_name: req.body.department_name,
               year_batch: req.body.year_batch,
-              student_details: newStudentDetails,
+              student_details: [...newStudentDetails],
             };
 
             // push the new Department created
@@ -884,6 +932,12 @@ export const convertStudentsCSVtoJSON = async (req: Request, res: Response) => {
 
             // Save the updated officer document
             await officer.save();
+
+            createStudentsIndexing(
+              officer,
+              req.body.department_name,
+              req.body.year_batch
+            );
 
             // Success:
             return res.status(200).json({
@@ -1261,7 +1315,7 @@ export const addCancelledRequestByOfficer = async (
         .json({ message: "Problem in verifying the token" });
     }
 
-    const { company_id, message } = req.body;
+    const { company_id, message, selectedstudents } = req.body;
 
     if (!company_id || !message) {
       // Error: Incomplete Data
@@ -1358,7 +1412,7 @@ export const addSubscribedOfficerFromOfficer = async (
     ) as jwt.JwtPayload;
     if (tokenVerify) {
       // Find the Company
-      const { company_id, message } = req.body;
+      const { company_id, message, selected_students } = req.body;
       // check the data came from frontend or not
       if (!company_id || !message) {
         // Error:
@@ -1395,30 +1449,31 @@ export const addSubscribedOfficerFromOfficer = async (
               const companyData = {
                 officer_id: tokenVerify.data,
                 index: officer.index,
-                access: [],
+                selectedbycompany: false,
                 college_name: officer.college_name,
                 username: officer.username,
                 message: message,
-                selectedstudents: [],
+                selectedstudents: selected_students,
               };
+
               company.subscribed_officer.push(companyData);
 
               // add to the officer that requested to company
               const officerData = {
                 company_id: company._id,
                 index: company.index,
-                access: [],
+                selectedbycompany: false,
                 username: company.username,
                 company_name: company.company_name,
                 message: message,
-                selectedstudents: [],
+                selectedstudents: selected_students,
               };
 
               officer.subscribed_company.push(officerData);
 
               // save
-              const savedOfficer = await officer.save();
               const savedCompany = await company.save();
+              const savedOfficer = await officer.save();
 
               if (savedOfficer && savedCompany) {
                 // Success :
@@ -1453,66 +1508,55 @@ export const addSubscribedOfficerFromOfficer = async (
   }
 };
 
-export const giveAccessToCompanies = async (req: Request, res: Response) => {
-  try {
-    const bearerHeader = req.headers.authorization;
-    const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(
-      bearer.split(" ")[1],
-      SecretKey
-    ) as jwt.JwtPayload;
-    if (tokenVerify) {
-      const officer_id = tokenVerify.data;
-      const { company_id, access } = req.body;
-      if (!company_id || !access) {
-        // Error:
-        return res.status(400).json({ message: "Incomplete Data" });
-      } else {
-        // find both the officer and company
-        const foundOfficer = await OfficerModel.findById({ _id: officer_id });
-        const foundCompany = await CompanyModel.findById({ _id: company_id });
+// export const giveAccessToCompanies = async (req: Request, res: Response) => {
+//   try {
+//     const bearerHeader = req.headers.authorization;
+//     const bearer: string = bearerHeader as string;
+//     const tokenVerify = jwt.verify(
+//       bearer.split(" ")[1],
+//       SecretKey
+//     ) as jwt.JwtPayload;
+//     if (tokenVerify) {
+//       const officer_id = tokenVerify.data;
+//       const { company_id, access } = req.body;
+//       if (!company_id || !access) {
+//         // Error:
+//         return res.status(400).json({ message: "Incomplete Data" });
+//       } else {
+//         // find both the officer and company
+//         const foundOfficer = await OfficerModel.findById({ _id: officer_id });
+//         const foundCompany = await CompanyModel.findById({ _id: company_id });
 
-        // if officer or company is not found
-        if (!foundOfficer || !foundCompany) {
-          // Error:
-          return res
-            .status(400)
-            .json({ message: "given Officer or Company not found" });
-        } else {
-          // change the access details in both officer and company side
-          foundOfficer.subscribed_company.map((e) => {
-            if (e.company_id === company_id) {
-              e.access = access;
-            }
-          });
+//         // if officer or company is not found
+//         if (!foundOfficer || !foundCompany) {
+//           // Error:
+//           return res
+//             .status(400)
+//             .json({ message: "given Officer or Company not found" });
+//         } else {
+//           // change the access details in both officer and company side
 
-          foundCompany.subscribed_officer.map((e) => {
-            if (e.officer_id === officer_id) {
-              e.access = access;
-            }
-          });
+//           // save
+//           const savedCompany = await foundCompany.save();
+//           const savedOfficer = await foundOfficer.save();
 
-          // save
-          const savedCompany = await foundCompany.save();
-          const savedOfficer = await foundOfficer.save();
-
-          // success: Access is given successfully
-          return res.status(200).json({
-            message: "Access is given successfully",
-          });
-        }
-      }
-    } else {
-      // Error:
-      return res
-        .status(500)
-        .json({ message: "Problem in verifying the token" });
-    }
-  } catch (e) {
-    // Error:
-    return res.status(500).json({ message: "Server Error" });
-  }
-};
+//           // success: Access is given successfully
+//           return res.status(200).json({
+//             message: "Access is given successfully",
+//           });
+//         }
+//       }
+//     } else {
+//       // Error:
+//       return res
+//         .status(500)
+//         .json({ message: "Problem in verifying the token" });
+//     }
+//   } catch (e) {
+//     // Error:
+//     return res.status(500).json({ message: "Server Error" });
+//   }
+// };
 
 export const getAllRequestedCompanies = async (req: Request, res: Response) => {
   try {
@@ -1739,11 +1783,10 @@ export const getAllCompanyByFilter = async (req: Request, res: Response) => {
       });
 
       // Shuffle the officers array randomly
-      const shuffledOfficers = shuffle(filteredCompanies);
 
       // Define the chunk size and total number of chunks
       const chunkSize = 7; // Number of items in each chunk
-      const totalChunks = Math.ceil(shuffledOfficers.length / chunkSize);
+      const totalChunks = Math.ceil(filteredCompanies.length / chunkSize);
 
       // Get the requested chunk number from the query parameter
       const requestedChunk = parseInt(req.query.chunk as string) || 1;
@@ -1753,7 +1796,7 @@ export const getAllCompanyByFilter = async (req: Request, res: Response) => {
       const endIndex = requestedChunk * chunkSize;
 
       // Slice the shuffled data array to get the desired chunk
-      const chunkData = shuffledOfficers.slice(startIndex, endIndex);
+      const chunkData = filteredCompanies.slice(startIndex, endIndex);
 
       //Success: Send the chunk data as a response
       return res.status(200).json({
@@ -2830,6 +2873,99 @@ export const giveEmailToCompanyAndOfficerRegardingAccess = async (
             message: "Access given successfully",
             AccessMail: AccessMail ? "Email Sent" : "Email Not sent",
           });
+        }
+      }
+    } else {
+      // Error:
+      return res
+        .status(500)
+        .json({ message: "Problem in verifying the token" });
+    }
+  } catch (e) {
+    // Error:
+    return res.status(500).json({ message: "Server Error" });
+  }
+};
+
+// get all the students accoding to the achievements and skills
+export const getAllStudentsAccordingToAchievementsAndSkills = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const bearerHeader = req.headers.authorization;
+    const bearer: string = bearerHeader as string;
+    const tokenVerify = jwt.verify(
+      bearer.split(" ")[1],
+      SecretKey
+    ) as jwt.JwtPayload;
+    if (tokenVerify) {
+      const { search, dept, year_batch } = req.body;
+      if (!search) {
+        // Error:
+        return res.status(400).json({ message: "Incomplete Data" });
+      } else {
+        const officer = await OfficerModel.findById({ _id: tokenVerify.data });
+        if (!officer) {
+          // Error:
+          return res.status(404).json({ message: "Officer not found" });
+        } else if (dept && year_batch) {
+          const department = officer.college_details.find(
+            (e) => e.department_name === dept && e.year_batch === year_batch
+          );
+          if (department) {
+            const searchRegex = new RegExp(search, "i"); // Case-insensitive regex for partial string search
+
+            let students = department.student_details.filter(
+              (student) =>
+                student.achievements.some((achievement) =>
+                  searchRegex.test(achievement)
+                ) || student.skills.some((skill) => searchRegex.test(skill))
+            );
+
+            students = students.filter((e) => {
+              return e.Internship_status === false;
+            });
+
+            if (students.length === 0) {
+              // Error:
+              return res.status(404).json({ message: "No Students Found" });
+            } else {
+              // Success:
+              return res.status(200).json({
+                message: "Students Found Successfully",
+                data: students,
+              });
+            }
+          } else {
+            return res.status(404).json({ message: "Department not found" });
+          }
+        } else {
+          const searchRegex = new RegExp(search, "i"); // Case-insensitive regex for partial string search
+
+          let students = officer.college_details.flatMap((details) =>
+            details.student_details.filter(
+              (student) =>
+                student.achievements.some((achievement) =>
+                  searchRegex.test(achievement)
+                ) || student.skills.some((skill) => searchRegex.test(skill))
+            )
+          );
+
+          students = students.filter((e) => {
+            return e.Internship_status === false;
+          });
+
+          if (students.length === 0) {
+            // Error:
+            return res.status(404).json({ message: "No Students Found" });
+          } else {
+            // Success:
+            return res.status(200).json({
+              message: "Students Found Successfully",
+              data: students,
+            });
+          }
         }
       }
     } else {

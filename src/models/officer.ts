@@ -1,5 +1,5 @@
 import { Schema, model, Document, ObjectId } from "mongoose";
-import { batchWiseDepartments, batchwiseDepartmentsInterface } from "./company";
+import { batchWiseDepartments } from "./company";
 import cron from "node-cron";
 // Selected Students by Company Interface --------------------------
 
@@ -9,7 +9,7 @@ export interface selectedStudentsInterface {
   start_date: Date | null;
   end_date: Date | null;
   confirmed: boolean;
-  studentsdetails: Students[];
+  student_details: Students[];
 }
 
 // Selected Students by Company Interface --------------------------
@@ -34,8 +34,8 @@ export interface subscribedCompany {
   message: string;
   username: string;
   company_name: string;
-  access: batchwiseDepartmentsInterface[];
   selectedstudents: selectedStudentsInterface[];
+  selectedbycompany: boolean;
 }
 
 // ----------------------------------- subscribedCompany Interface
@@ -65,11 +65,11 @@ export interface Students {
   mobile_no: string;
   branch: string;
   roll_no: string;
-  achievements: [string];
-  skills: [string];
-  hobbies: [string];
+  achievements: string[];
+  skills: string[];
+  hobbies: string[];
   cgpa: number;
-  backlog: boolean;
+  backlog: number;
   year_batch: number;
   linked_profile_link: string;
   github_profile_link: string;
@@ -79,7 +79,7 @@ export interface Students {
   internship_end_date: Date | null;
   Internship_status: boolean;
   current_internship: string | null;
-  internships_till_now: [string];
+  internships_till_now: string[];
   tenth_percentage: number;
   twelve_percentage: number;
   diploma_percentage: number;
@@ -159,7 +159,7 @@ export const StudentsSchema = new Schema<Students>({
     type: Number,
   },
   backlog: {
-    type: Boolean,
+    type: Number,
   },
   linked_profile_link: {
     type: String,
@@ -233,8 +233,9 @@ export const selectedStudents = new Schema<selectedStudentsInterface>({
   confirmed: {
     type: Boolean,
   },
-  studentsdetails: {
+  student_details: {
     type: [StudentsSchema],
+    default: [],
   },
 });
 
@@ -249,8 +250,8 @@ export const subscribedCompany = new Schema<subscribedCompany>({
   index: {
     type: Number,
   },
-  access: {
-    type: [batchWiseDepartments],
+  selectedbycompany: {
+    type: Boolean,
   },
   message: {
     type: String,
@@ -342,18 +343,10 @@ export const cancelledCompany = new Schema<cancelledCompany>({
 export const DepartmentSchema = new Schema<Department>({
   department_name: {
     type: String,
-    minlength: [2, "minimum 2 letters required"],
     required: true,
   },
   year_batch: {
     type: Number,
-    validate: {
-      validator: function (value: number): void {
-        if (value.toString().length != 4) {
-          throw new Error("The number should be of 4 digits long.");
-        }
-      },
-    },
     required: true,
   },
   student_details: {
@@ -413,11 +406,11 @@ const OfficerSchema = new Schema<Officer>({
 
 cron.schedule("0 0 * * *", async () => {
   // fetching all the officers
-  await OfficerModel.find({}, (err, data) => {
+  await OfficerModel.find({}, (err: any, data: any) => {
     if (err) {
       console.log(err);
     } else {
-      data.forEach((officer) => {
+      data.forEach((officer: Officer) => {
         // Checking each officer college details
         officer.college_details.forEach((department) => {
           // Checking each department student details
