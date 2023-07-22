@@ -8,6 +8,7 @@ import {
   loginCompanyController,
   addSubscribeRequestToOfficer,
   // addSubscribedOfficerFromCompany,
+  getdepartmentNotSelectedByCompany,
   addCancelledRequest,
   addCancelledRequestByCompany,
   getStudentDetailsbyDeptAndYearByCompany,
@@ -41,6 +42,12 @@ router.get("/getAll", getAllCompanyController);
 
 // Delete Company by Id
 router.delete("/deleteCompany", deleteCompanyController);
+
+// get department not selected by company
+router.put(
+  "/getdepartmentNotSelectedByCompany",
+  getdepartmentNotSelectedByCompany
+);
 
 // subscribe the officer
 router.post("/addSubscribeRequestToOfficer", addSubscribeRequestToOfficer);

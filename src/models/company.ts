@@ -1,5 +1,5 @@
 import { model, Schema, Document, Types } from "mongoose";
-import { StudentsSchema, selectedStudents, Students } from "./officer";
+import { StudentsSchema, Students } from "./officer";
 
 export interface selectedStudentsInterface {
   department_name: string;
@@ -37,8 +37,8 @@ export interface subscribedOfficer {
   college_name: string;
   index: number;
   message: string;
-  selectedbycompany: boolean;
-  selectedstudents: selectedStudentsInterface[];
+  selectedbycompany: selectedStudentsInterface[];
+  selectedbyOfficer: selectedStudentsInterface[];
 }
 // ---------------------------------------------- subscribedOfficer Interface
 
@@ -66,6 +66,32 @@ export interface Company extends Document {
   cancelled_officer: cancelledOfficer[];
 }
 // ---------------------------------------------- Company Interface
+
+// ---------------------------------------------- selectedStudents Schema
+
+export const selectedStudents = new Schema<selectedStudentsInterface>({
+  department_name: {
+    type: String,
+  },
+  year_batch: {
+    type: Number,
+  },
+  start_date: {
+    type: Date,
+  },
+  end_date: {
+    type: Date,
+  },
+  confirmed: {
+    type: Boolean,
+  },
+  student_details: {
+    type: [StudentsSchema],
+    default: [],
+  },
+});
+
+// ---------------------------------------------- selectedStudents Schema
 
 // ---------------------------------------------- cancelledOfficer Schema
 
@@ -121,12 +147,12 @@ export const subscribedOfficerSchema = new Schema<subscribedOfficer>({
     type: String,
   },
   selectedbycompany: {
-    type: Boolean,
+    type: [selectedStudents],
   },
   message: {
     type: String,
   },
-  selectedstudents: {
+  selectedbyOfficer: {
     type: [selectedStudents],
   },
 });

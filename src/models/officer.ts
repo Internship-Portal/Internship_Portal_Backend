@@ -1,5 +1,5 @@
 import { Schema, model, Document, ObjectId } from "mongoose";
-import { batchWiseDepartments } from "./company";
+import { batchWiseDepartments, batchwiseDepartmentsInterface } from "./company";
 import cron from "node-cron";
 // Selected Students by Company Interface --------------------------
 
@@ -34,8 +34,8 @@ export interface subscribedCompany {
   message: string;
   username: string;
   company_name: string;
-  selectedstudents: selectedStudentsInterface[];
-  selectedbycompany: boolean;
+  selectedbyOfficer: selectedStudentsInterface[];
+  selectedbycompany: selectedStudentsInterface[];
 }
 
 // ----------------------------------- subscribedCompany Interface
@@ -56,7 +56,6 @@ export interface cancelledCompany {
 // -------------------------------------------- Students Interface
 
 export interface Students {
-  _id?: ObjectId;
   index: number;
   name: string;
   email_id: string;
@@ -251,7 +250,7 @@ export const subscribedCompany = new Schema<subscribedCompany>({
     type: Number,
   },
   selectedbycompany: {
-    type: Boolean,
+    type: [selectedStudents],
   },
   message: {
     type: String,
@@ -262,7 +261,7 @@ export const subscribedCompany = new Schema<subscribedCompany>({
   company_name: {
     type: String,
   },
-  selectedstudents: {
+  selectedbyOfficer: {
     type: [selectedStudents],
   },
 });

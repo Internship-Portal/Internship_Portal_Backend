@@ -5,7 +5,11 @@ import jwt from "jsonwebtoken";
 import nodemailer from "nodemailer";
 
 const SecretKey = "lim4yAey6K78dA8N1yKof4Stp9H4A";
-import CompanyModel, { Company } from "../models/company";
+import CompanyModel, {
+  Company,
+  batchwiseDepartmentsInterface,
+  subscribedOfficer,
+} from "../models/company";
 
 import OfficerModel, {
   Officer,
@@ -1027,6 +1031,15 @@ export const selectedStudentsByCompaniesWithoutDates = async (
           let foundInCompany = false;
           let foundInOfficer = false;
           let foundInCompanySubscribed = false;
+          let found_department_in_company:
+            | subscribedOfficer
+            | null
+            | undefined = null;
+          let found_department_in_officer:
+            | subscribedCompany
+            | null
+            | undefined = null;
+
           // then add the data into both the schemas
           let data: selectedStudentsInterface = {
             department_name: department_name,
@@ -1038,72 +1051,105 @@ export const selectedStudentsByCompaniesWithoutDates = async (
           };
 
           // add the data in company and check if the data exist in both or not
-
-          for (const obj of verifyCompany.subscribed_officer) {
-            if (obj.officer_id === officer_id) {
-              foundInCompany = true;
-              if (
-                obj.selectedstudents.some((student) => {
-                  return (
-                    student.department_name === department_name &&
-                    student.year_batch === year_batch
-                  );
-                }) === false
-              ) {
-                obj.selectedstudents.push(data);
-              } else {
-                foundInCompanySubscribed = true;
-                return res.status(400).json({
-                  message: "Data about selected students already exists",
-                });
+          found_department_in_company = verifyCompany.subscribed_officer.find(
+            (obj) => {
+              if (obj.officer_id === officer_id) {
+                foundInCompany = true;
+                return obj;
               }
-              break; // Exit the loop after finding a match
             }
-          }
+          );
 
-          if (!foundInCompany || !foundInCompanySubscribed) {
-            verifyOfficer.subscribed_company.filter((obj) => {
+          // add the data in officer and check if the data exist in both or not
+          found_department_in_officer = verifyOfficer.subscribed_company.find(
+            (obj) => {
               if (obj.company_id === company_id) {
                 foundInOfficer = true;
-                obj.selectedstudents.push(data);
+                return obj;
+              }
+            }
+          );
+
+          // check if the department is found in both the schemas
+          if (
+            !foundInCompany ||
+            !foundInOfficer ||
+            !found_department_in_company ||
+            !found_department_in_officer
+          ) {
+            return res.status(400).json({
+              message: "Invalid Subscription",
+            });
+          } else {
+            // check if the department is found in both the schemas already subscribed
+            found_department_in_company.selectedbycompany.find((obj) => {
+              if (
+                obj.department_name === department_name &&
+                obj.year_batch === year_batch
+              ) {
+                foundInCompanySubscribed = true;
+                return obj;
               }
             });
-
-            if (!foundInCompany || !foundInOfficer) {
+            if (foundInCompanySubscribed) {
               return res.status(400).json({
-                message: "Invalid Subscription",
-              });
-            } else {
-              // save them
-              const savedCompany = await verifyCompany.save();
-              const savedOfficer = await verifyOfficer.save();
-
-              let successfully_send = false;
-
-              sendEmailByCompanyAction(
-                verifyOfficer,
-                verifyCompany,
-                department_name,
-                year_batch,
-                null,
-                null,
-                selected_students
-              )
-                .then((response) => {
-                  // Success
-                  successfully_send = true;
-                })
-                .catch((error) => (successfully_send = false));
-              // Success: Data set Successfully
-              return res.status(200).json({
-                message: "Data set Successfully",
-                data: {
-                  company: savedCompany,
-                  officer: savedOfficer,
-                  mailSend: successfully_send ? "Email Sent" : "Email not Sent",
-                },
+                message: "Already subscribed",
               });
             }
+
+            found_department_in_company.selectedbyOfficer =
+              found_department_in_company.selectedbyOfficer.filter((obj) => {
+                if (
+                  obj.department_name !== department_name &&
+                  obj.year_batch !== year_batch
+                ) {
+                  return obj;
+                }
+              });
+
+            found_department_in_officer.selectedbyOfficer =
+              found_department_in_officer.selectedbyOfficer.filter((obj) => {
+                if (
+                  obj.department_name !== department_name &&
+                  obj.year_batch !== year_batch
+                ) {
+                  return obj;
+                }
+              });
+
+            // add the data in company
+            found_department_in_company.selectedbycompany.push(data);
+            found_department_in_officer.selectedbycompany.push(data);
+
+            // save them
+            const savedCompany = await verifyCompany.save();
+            const savedOfficer = await verifyOfficer.save();
+
+            let successfully_send = false;
+
+            sendEmailByCompanyAction(
+              verifyOfficer,
+              verifyCompany,
+              department_name,
+              year_batch,
+              null,
+              null,
+              selected_students
+            )
+              .then((response) => {
+                // Success
+                successfully_send = true;
+              })
+              .catch((error) => (successfully_send = false));
+            // Success: Data set Successfully
+            return res.status(200).json({
+              message: "Data set Successfully",
+              data: {
+                company: savedCompany,
+                officer: savedOfficer,
+                mailSend: successfully_send ? "Email Sent" : "Email not Sent",
+              },
+            });
           }
         }
       }
@@ -1180,6 +1226,14 @@ export const selectedStudentsByCompaniesWithDates = async (
             let foundInCompany = false;
             let foundInOfficer = false;
             let foundInCompanySubscribed = false;
+            let found_department_in_company:
+              | subscribedOfficer
+              | null
+              | undefined = null;
+            let found_department_in_officer:
+              | subscribedCompany
+              | null
+              | undefined = null;
             // then add the data into both the schemas
             let data: selectedStudentsInterface = {
               department_name: department_name,
@@ -1192,76 +1246,192 @@ export const selectedStudentsByCompaniesWithDates = async (
 
             // add the data in officer and check if the data exist in both or not
 
-            verifyOfficer.subscribed_company.filter((obj) => {
-              if (obj.company_id === company_id) {
-                foundInOfficer = true;
-                if (
-                  obj.selectedstudents.some((student) => {
-                    return (
-                      student.department_name === department_name &&
-                      student.year_batch === year_batch
-                    );
-                  }) === false
-                ) {
-                  obj.selectedstudents.push(data);
-                } else {
-                  foundInCompanySubscribed = true;
-                  return res.status(400).json({
-                    message: "Data about selected students already exists",
-                  });
-                }
-              }
-            });
-
-            if (!foundInOfficer || !foundInCompanySubscribed) {
-              // add the data in company and check if the data exist in both or not
-              for (const obj of verifyCompany.subscribed_officer) {
+            // add the data in company and check if the data exist in both or not
+            found_department_in_company = verifyCompany.subscribed_officer.find(
+              (obj) => {
                 if (obj.officer_id === officer_id) {
                   foundInCompany = true;
-                  foundInCompanySubscribed = true;
-                  obj.selectedstudents.push(data);
-                  break; // Exit the loop after finding a match
+                  return obj;
                 }
               }
-              if (!foundInCompany || !foundInOfficer) {
+            );
+
+            // add the data in officer and check if the data exist in both or not
+            found_department_in_officer = verifyOfficer.subscribed_company.find(
+              (obj) => {
+                if (obj.company_id === company_id) {
+                  foundInOfficer = true;
+                  return obj;
+                }
+              }
+            );
+
+            // check if the department is found in both the schemas
+            if (
+              !foundInCompany ||
+              !foundInOfficer ||
+              !found_department_in_company ||
+              !found_department_in_officer
+            ) {
+              return res.status(400).json({
+                message: "Invalid Subscription",
+              });
+            } else {
+              // check if the department is found in both the schemas already subscribed
+              found_department_in_company.selectedbycompany.find((obj) => {
+                if (
+                  obj.department_name === department_name &&
+                  obj.year_batch === year_batch
+                ) {
+                  foundInCompanySubscribed = true;
+                  return obj;
+                }
+              });
+              if (foundInCompanySubscribed) {
                 return res.status(400).json({
-                  message: "Invalid Subscription",
-                });
-              } else {
-                // save them
-                const savedCompany = await verifyCompany.save();
-                const savedOfficer = await verifyOfficer.save();
-
-                let successfully_send = false;
-
-                sendEmailByCompanyAction(
-                  verifyOfficer,
-                  verifyCompany,
-                  department_name,
-                  year_batch,
-                  start_date,
-                  end_date,
-                  selected_students
-                )
-                  .then((response) => {
-                    // Success
-                    successfully_send = true;
-                  })
-                  .catch((error) => (successfully_send = false));
-                // Success: Data set Successfully
-                return res.status(200).json({
-                  message: "Data set Successfully",
-                  data: {
-                    company: savedCompany,
-                    officer: savedOfficer,
-                    mailSend: successfully_send
-                      ? "Email Sent"
-                      : "Email not Sent",
-                  },
+                  message: "Already subscribed",
                 });
               }
+
+              found_department_in_company.selectedbyOfficer =
+                found_department_in_company.selectedbyOfficer.filter((obj) => {
+                  if (
+                    obj.department_name !== department_name &&
+                    obj.year_batch !== year_batch
+                  ) {
+                    return obj;
+                  }
+                });
+
+              found_department_in_officer.selectedbyOfficer =
+                found_department_in_officer.selectedbyOfficer.filter((obj) => {
+                  if (
+                    obj.department_name !== department_name &&
+                    obj.year_batch !== year_batch
+                  ) {
+                    return obj;
+                  }
+                });
+
+              // add the data in company
+              found_department_in_company.selectedbycompany.push(data);
+              found_department_in_officer.selectedbycompany.push(data);
+
+              // save them
+              const savedCompany = await verifyCompany.save();
+              const savedOfficer = await verifyOfficer.save();
+
+              let successfully_send = false;
+
+              sendEmailByCompanyAction(
+                verifyOfficer,
+                verifyCompany,
+                department_name,
+                year_batch,
+                start_date,
+                end_date,
+                selected_students
+              )
+                .then((response) => {
+                  // Success
+                  successfully_send = true;
+                })
+                .catch((error) => (successfully_send = false));
+              // Success: Data set Successfully
+              return res.status(200).json({
+                message: "Data set Successfully",
+                data: {
+                  company: savedCompany,
+                  officer: savedOfficer,
+                  mailSend: successfully_send ? "Email Sent" : "Email not Sent",
+                },
+              });
             }
           }
+        }
+      }
+    } else {
+      // error:
+      return res
+        .status(500)
+        .json({ message: "Problem in verifying the token" });
+    }
+  } catch (e) {
+    // error:
+    return res.status(500).json({ message: "Server Error" });
+  }
+};
+
+// get all the students that are not selected by company
+export const getdepartmentNotSelectedByCompany = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const bearerHeader = req.headers.authorization;
+    const bearer: string = bearerHeader as string;
+    const tokenVerify = jwt.verify(
+      bearer.split(" ")[1],
+      SecretKey
+    ) as jwt.JwtPayload;
+    if (tokenVerify) {
+      const company_id = tokenVerify.data;
+      const { officer_id } = req.body;
+      if (!company_id || !officer_id) {
+        // error:
+        return res.status(400).json({ message: "Incomplete Data" });
+      } else {
+        // find both the officer and company
+        const foundOfficer = await OfficerModel.findById({ _id: officer_id });
+        const foundCompany = await CompanyModel.findById({ _id: company_id });
+
+        if (!foundCompany || !foundOfficer) {
+          // error:
+          return res
+            .status(400)
+            .json({ message: "Cannot find officer or company" });
+        } else {
+          // get students not department by company
+
+          const found_officer = foundCompany.subscribed_officer.filter(
+            (obj) => {
+              if (obj.officer_id === officer_id) {
+                return obj;
+              }
+            }
+          );
+
+          interface studentInterface {
+            year_batch: number;
+            department_name: string;
+          }
+
+          let validDepartment: batchwiseDepartmentsInterface[] = [];
+
+          const found_department = found_officer[0].selectedbyOfficer.filter(
+            (obj) => {
+              const departmentExists = validDepartment.some((e) => {
+                if (e.year_batch === obj.year_batch) {
+                  e.departments.push(obj.department_name);
+                  return true;
+                }
+              });
+              if (!departmentExists) {
+                validDepartment.push({
+                  year_batch: obj.year_batch,
+                  departments: [obj.department_name],
+                });
+              }
+              return obj;
+            }
+          );
+
+          // Success:
+          return res.status(200).json({
+            message: "This is get department not selected by company API",
+            data: validDepartment,
+            deptData: found_department,
+          });
         }
       }
     } else {
@@ -1309,14 +1479,14 @@ export const getStudentDetailsbyDeptAndYearByCompany = async (
               }
             }
           )!;
-          if (foundYearBatchInCompany.selectedbycompany === false) {
-            // error:
-            return res
-              .status(400)
-              .json({ message: "Company has not selected any student" });
-          }
+          // if (foundYearBatchInCompany.selectedbycompany.length === 0) {
+          //   // error:
+          //   return res
+          //     .status(400)
+          //     .json({ message: "Company has not selected any student" });
+          // }
           const studentsInDepartment =
-            foundYearBatchInCompany.selectedstudents.find((e) => {
+            foundYearBatchInCompany.selectedbyOfficer.find((e) => {
               if (
                 e.year_batch === year_batch &&
                 e.department_name === department_name
@@ -1324,6 +1494,7 @@ export const getStudentDetailsbyDeptAndYearByCompany = async (
                 return e;
               }
             });
+
           if (!studentsInDepartment) {
             // error:
             return res.status(400).json({ message: "Year Batch is not valid" });
