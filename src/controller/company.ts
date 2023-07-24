@@ -996,6 +996,7 @@ export const selectedStudentsByCompaniesWithoutDates = async (
       SecretKey
     ) as jwt.JwtPayload;
     if (tokenVerify) {
+   
       const {
         officer_id,
         department_name,
@@ -1007,6 +1008,7 @@ export const selectedStudentsByCompaniesWithoutDates = async (
         year_batch: number;
         selected_students: Students[];
       } = req.body;
+     
       const company_id = tokenVerify.data;
       if (
         !officer_id ||
@@ -1016,18 +1018,24 @@ export const selectedStudentsByCompaniesWithoutDates = async (
         selected_students.length === 0
       ) {
         // error:
+        
+        
         return res.status(400).json({ message: "Incomplete Data" });
       } else {
+      
         // confirm the company and officer is both subscribed
         const verifyOfficer = await OfficerModel.findById({ _id: officer_id });
         const verifyCompany = await CompanyModel.findById({ _id: company_id });
 
         if (!verifyOfficer || !verifyCompany) {
+
           // error:
+          
           return res
             .status(400)
             .json({ message: "Officer or company not found" });
         } else {
+         
           let foundInCompany = false;
           let foundInOfficer = false;
           let foundInCompanySubscribed = false;
@@ -1040,6 +1048,8 @@ export const selectedStudentsByCompaniesWithoutDates = async (
             | null
             | undefined = null;
 
+            
+
           // then add the data into both the schemas
           let data: selectedStudentsInterface = {
             department_name: department_name,
@@ -1049,6 +1059,7 @@ export const selectedStudentsByCompaniesWithoutDates = async (
             confirmed: false,
             student_details: selected_students,
           };
+
 
           // add the data in company and check if the data exist in both or not
           found_department_in_company = verifyCompany.subscribed_officer.find(
@@ -1060,6 +1071,7 @@ export const selectedStudentsByCompaniesWithoutDates = async (
             }
           );
 
+       
           // add the data in officer and check if the data exist in both or not
           found_department_in_officer = verifyOfficer.subscribed_company.find(
             (obj) => {
@@ -1140,7 +1152,9 @@ export const selectedStudentsByCompaniesWithoutDates = async (
                 // Success
                 successfully_send = true;
               })
-              .catch((error) => (successfully_send = false));
+              .catch((error) => { 
+               
+                successfully_send = false});
             // Success: Data set Successfully
             return res.status(200).json({
               message: "Data set Successfully",
@@ -1460,7 +1474,8 @@ export const getStudentDetailsbyDeptAndYearByCompany = async (
     ) as jwt.JwtPayload;
     if (tokenVerify) {
       const company_id = tokenVerify.data;
-      const { year_batch, department_name, officer_id } = req.body;
+      const {department_name, officer_id } = req.body;
+      let { year_batch } = req.body;
       if (!company_id || !year_batch || !department_name || !officer_id) {
         // error:
         return res.status(400).json({ message: "Incomplete Data" });
@@ -1485,6 +1500,7 @@ export const getStudentDetailsbyDeptAndYearByCompany = async (
           //     .status(400)
           //     .json({ message: "Company has not selected any student" });
           // }
+          year_batch = parseInt(year_batch)
           const studentsInDepartment =
             foundYearBatchInCompany.selectedbyOfficer.find((e) => {
               if (
@@ -1495,6 +1511,7 @@ export const getStudentDetailsbyDeptAndYearByCompany = async (
               }
             });
 
+         
           if (!studentsInDepartment) {
             // error:
             return res.status(400).json({ message: "Year Batch is not valid" });
