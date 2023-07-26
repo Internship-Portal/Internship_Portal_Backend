@@ -1137,19 +1137,27 @@ export const selectedStudentsByCompaniesWithoutDates = async (
               selected_students
             )
               .then((response) => {
-                // Success
-                successfully_send = true;
+                //success
+                return res.status(200).json({
+                  message: "Data set Successfully",
+                  data: {
+                    company: savedCompany,
+                    officer: savedOfficer,
+                    mailSend: "Email Sent",
+                  },
+                });
               })
-              .catch((error) => (successfully_send = false));
-            // Success: Data set Successfully
-            return res.status(200).json({
-              message: "Data set Successfully",
-              data: {
-                company: savedCompany,
-                officer: savedOfficer,
-                mailSend: successfully_send ? "Email Sent" : "Email not Sent",
-              },
-            });
+              .catch((error) => {
+                // error
+                return res.status(200).json({
+                  message: "Data set Successfully",
+                  data: {
+                    company: savedCompany,
+                    officer: savedOfficer,
+                    mailSend: "Email not sent",
+                  },
+                });
+              });
           }
         }
       }

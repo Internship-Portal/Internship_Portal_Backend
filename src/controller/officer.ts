@@ -836,6 +836,63 @@ const createStudentsIndexing = async (
   }
 };
 
+function monthToNumber(monthName: any) {
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+
+  return months.indexOf(monthName);
+}
+
+function convertToDateIfValidFormat(dateString: any) {
+  // Regular expressions to match various date formats
+  const dateFormatRegexes = [
+    /^(\d{2})-(\d{2})-(\d{4})$/, // dd-mm-yyyy
+    /^(\d{2})\/(\d{2})\/(\d{4})$/, // dd/mm/yyyy
+    /^(\d{2})-(\d{2})-(\d{2})$/, // dd-mm-yy
+    /^(\d{2})\/(\d{2})\/(\d{2})$/, // dd/mm/yy
+    /^(\d{2})\s([a-zA-Z]{3})\s(\d{4})$/, // dd Mon yyyy
+    /^([a-zA-Z]{3})\s(\d{2}),\s(\d{4})$/, // Mon dd, yyyy
+  ];
+
+  for (const dateFormatRegex of dateFormatRegexes) {
+    const match = dateString.match(dateFormatRegex);
+
+    if (match) {
+      // Extract day, month, and year values from the matched groups
+      let day, month, year;
+      if (dateFormatRegex.toString().includes("Mon")) {
+        // If the format includes abbreviated month names like "Mar"
+        [day, month, year] = match.slice(1); // Use slice(1) to skip the full match at index 0
+        month = monthToNumber(month);
+      } else {
+        // If the format uses numeric month representation
+        [day, month, year] = match.slice(1); // Use slice(1) to skip the full match at index 0
+        month = parseInt(month) - 1; // Months are zero-indexed in JavaScript Date object
+      }
+
+      // Create a new Date object
+      const convertedDate = new Date(year, month, day);
+
+      return convertedDate;
+    }
+  }
+
+  // If the date is not in any of the expected formats, return the input date string as is
+  return dateString;
+}
+
 // Access the CSV file provided by frontend and convert it to the JSON format
 
 export const convertStudentsCSVtoJSON = async (req: Request, res: Response) => {
@@ -913,8 +970,12 @@ export const convertStudentsCSVtoJSON = async (req: Request, res: Response) => {
                 e.internship_start_date.length !== 0 &&
                 e.internship_end_date.length !== 0
               ) {
-                e.internship_start_date = new Date(e.internship_start_date);
-                e.internship_end_date = new Date(e.internship_end_date);
+                e.internship_start_date = convertToDateIfValidFormat(
+                  e.internship_start_date
+                );
+                e.internship_end_date = convertToDateIfValidFormat(
+                  e.internship_end_date
+                );
               }
             });
 
@@ -2011,10 +2072,12 @@ export const sendEmailForConfirmedStudents = (
     <p style="font-size: 1.1em;">Hi users,</p>
     <p>${Officer.college_name}, which is handled by ${
           Officer.username
-        }, has confirmed the students of the Department ${department_name}, batch ${year_batch}, from ${start_date
+        }, has confirmed the students of the Department ${department_name}, batch ${year_batch}, from ${new Date(
+          start_date
+        )
           .toISOString()
           .split("T")[0]
-          .replace(/-/g, "/")} to ${end_date
+          .replace(/-/g, "/")} to ${new Date(end_date)
           .toISOString()
           .split("T")[0]
           .replace(/-/g, "/")} from the list sent by Company representative ${
@@ -2053,120 +2116,121 @@ export const confirmSelectedStudentsWithDates = async (
   req: Request,
   res: Response
 ) => {
-  try {
-    const bearerHeader = req.headers.authorization;
-    const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(
-      bearer.split(" ")[1],
-      SecretKey
-    ) as jwt.JwtPayload;
-    if (tokenVerify) {
-      // get the data from frontend
-      const { company_id, company_name, selectedstudents } = req.body;
-      if (!company_id || !selectedstudents) {
-        // Error: Data not found
-        return res.status(400).json({ message: "Incomplete Data" });
+  // try {
+  const bearerHeader = req.headers.authorization;
+  const bearer: string = bearerHeader as string;
+  const tokenVerify = jwt.verify(
+    bearer.split(" ")[1],
+    SecretKey
+  ) as jwt.JwtPayload;
+  if (tokenVerify) {
+    // get the data from frontend
+    let { company_id, company_name, selectedstudents, start_date, end_date } =
+      req.body;
+
+    start_date = convertToDateIfValidFormat(start_date);
+    end_date = convertToDateIfValidFormat(end_date);
+
+    if (!company_id || !selectedstudents) {
+      // Error: Data not found
+      return res.status(400).json({ message: "Incomplete Data" });
+    } else {
+      // find the Officer
+      const Officer = await OfficerModel.findById({ _id: tokenVerify.data });
+      const Company = await CompanyModel.findById({ _id: company_id });
+      if (!Officer || !Company) {
+        return res
+          .status(404)
+          .json({ message: "Officer or Company not found" });
       } else {
-        // find the Officer
-        const Officer = await OfficerModel.findById({ _id: tokenVerify.data });
-        const Company = await CompanyModel.findById({ _id: company_id });
-        if (!Officer || !Company) {
-          return res
-            .status(404)
-            .json({ message: "Officer or Company not found" });
-        } else {
-          // take out the data from selectedstudents
-          selectedstudents.map((e: any, i: number) => {
-            const {
-              department_name,
-              start_date,
-              end_date,
-              year_batch,
-            }: {
-              department_name: string;
-              start_date: Date;
-              end_date: Date;
-              year_batch: number;
-            } = selectedstudents[i];
+        let studentsAlreadySelected: any = [];
+        let studentsNotFound: any = [];
+        // take out the data from selectedstudents
+        // for(int i=0;i<selectedstudents.length;i++){
+        for (let i = 0; i < selectedstudents.length; i++) {
+          const {
+            branch,
+            year_batch,
+          }: {
+            branch: string;
+            year_batch: number;
+          } = selectedstudents[i];
 
-            console.log(department_name, start_date, end_date, year_batch);
-
-            let foundElement: Department | null = null;
-            // find the department and year_batch in officer
-            for (let i = 0; i < Officer.college_details.length; i++) {
-              if (
-                Officer.college_details[i].department_name ===
-                  department_name &&
-                Officer.college_details[i].year_batch === year_batch
-              ) {
-                foundElement = Officer.college_details[i];
-                break;
-              }
+          let foundElement: Department | null = null;
+          // find the department and year_batch in officer
+          for (let i = 0; i < Officer.college_details.length; i++) {
+            if (
+              Officer.college_details[i].department_name === branch &&
+              Officer.college_details[i].year_batch === year_batch
+            ) {
+              foundElement = Officer.college_details[i];
+              break;
             }
+          }
 
-            if (foundElement === null) {
-              // Error: Department not found
-              return res.status(404).json({
-                message: `Department ${department_name} with batch year ${year_batch} not found`,
-              });
-            } else {
-              // find the student in the foundElement
+          if (foundElement === null) {
+            studentsNotFound.push(selectedstudents[i]);
+            break;
+          } else {
+            // find the student in the foundElement
 
-              const students = selectedstudents[i].student_details;
-              for (let i = 0; i < students.length; i++) {
-                // check if the student is already selected for any internship or not boolean
+            // check if the student is already selected for any internship or not boolean
 
-                const studentDetails = foundElement?.student_details;
-                if (studentDetails) {
-                  // binary search
-                  let foundStudent = false;
-                  let low = 0;
-                  let high = studentDetails.length - 1;
+            const studentDetails = foundElement?.student_details;
+            if (studentDetails) {
+              // binary search
+              let foundStudent = false;
+              let low = 0;
+              let high = studentDetails.length - 1;
 
-                  while (low <= high) {
-                    let mid = Math.floor((low + high) / 2);
-                    let midElement = studentDetails[mid];
+              while (low <= high) {
+                let mid = Math.floor((low + high) / 2);
+                let midElement = studentDetails[mid];
 
-                    if (students[i].index === midElement.index) {
-                      // check if the student is already selected for any internship or not
-                      if (midElement.Internship_status === false) {
-                        // change the status of the student to unavailable
-                        foundStudent = true;
-                        midElement.Internship_status = true;
-                        midElement.current_internship = company_name;
-                        studentDetails[mid].internships_till_now.push(
-                          company_name
-                        );
-                        studentDetails[mid].internship_start_date = start_date;
-                        studentDetails[mid].internship_end_date = end_date;
-
-                        break;
-                      } else {
-                        // Error: Student is already selected for any internship
-                        return res.status(400).json({
-                          message: `Student with roll no ${midElement.roll_no} is already selected for ${midElement.current_internship} internship`,
-                        });
-                      }
-                    } else if (students[i].index < midElement.index) {
-                      // search in the left half
-                      high = mid - 1;
-                    } else {
-                      // search in the right half
-                      low = mid + 1;
-                    }
+                if (selectedstudents[i].index === midElement.index) {
+                  // check if the student is already selected for any internship or not
+                  if (midElement.Internship_status === false) {
+                    // change the status of the student to unavailable
+                    foundStudent = true;
+                    midElement.Internship_status = true;
+                    midElement.current_internship = company_name;
+                    studentDetails[mid].internships_till_now.push(company_name);
+                    studentDetails[mid].internship_start_date = start_date;
+                    studentDetails[mid].internship_end_date = end_date;
+                    break;
+                  } else {
+                    // Error: Student is already selected for any internship
+                    studentsAlreadySelected.push(midElement);
+                    break;
                   }
-
-                  if (!foundStudent) {
-                    // Error: Student not found
-                    return res.status(400).json({
-                      message: `Student with roll no ${students[i].roll_no} is not found in the department ${department_name} with batch year ${year_batch}`,
-                    });
-                  }
+                } else if (selectedstudents[i].index < midElement.index) {
+                  // search in the left half
+                  high = mid - 1;
+                } else {
+                  // search in the right half
+                  low = mid + 1;
                 }
               }
-            }
-          });
 
+              if (!foundStudent) {
+                // Error: Student not found
+                studentsNotFound.push(selectedstudents[i]);
+              }
+            }
+          }
+        }
+
+        if (studentsAlreadySelected.length > 0) {
+          return res.status(400).json({
+            message: "Students are already selected for any internship",
+            data: studentsAlreadySelected,
+          });
+        } else if (studentsNotFound.length > 0) {
+          return res.status(400).json({
+            message: "Students not found",
+            data: studentsNotFound,
+          });
+        } else {
           // save the data
           const savedOfficerDetails = await Officer.save();
           if (!savedOfficerDetails) {
@@ -2174,53 +2238,35 @@ export const confirmSelectedStudentsWithDates = async (
               .status(400)
               .json({ message: "Error in saving the officer details" });
           } else {
-            let successfully_send = false;
-            if (selectedstudents.length === 1) {
-              sendEmailForConfirmedStudents(
-                Officer,
-                Company,
-                selectedstudents[0].department_name,
-                selectedstudents[0].year_batch,
-                selectedstudents[0].start_date,
-                selectedstudents[0].end_date,
-                selectedstudents[0].student_details
-              )
-                .then((response) => {
-                  // Success
-                  successfully_send = true;
-                })
-                .catch((error) => (successfully_send = false));
-            } else {
-              selectedstudents.map((e: any, i: number) => {
-                sendEmailForConfirmedStudents(
-                  Officer,
-                  Company,
-                  e.department_name,
-                  e.year_batch,
-                  e.start_date,
-                  e.end_date,
-                  selectedstudents[i].student_details
-                )
-                  .then((response) => {
-                    // Success
-                    successfully_send = true;
-                  })
-                  .catch((error) => (successfully_send = false));
+            // send the email to the officer and company
+            sendEmailForConfirmedStudents(
+              Officer,
+              Company,
+              selectedstudents[0].branch,
+              selectedstudents[0].year_batch,
+              start_date,
+              end_date,
+              selectedstudents
+            )
+              .then((response) => {
+                // Success
+                return res.status(200).json({
+                  message:
+                    "Successfully changed the status of the students to unavailable",
+                });
+              })
+              .catch((error) => {
+                console.log(error);
               });
-            }
-            // Success
-            return res.status(200).json({
-              message:
-                "Successfully changed the status of the students to unavailable",
-            });
           }
         }
       }
     }
-  } catch (error) {
-    // Error:
-    return res.status(500).json("Error retrieving Companies: " + error);
   }
+  // } catch (error) {
+  //   // Error:
+  //   return res.status(500).json("Error retrieving Companies: " + error);
+  // }
 };
 
 // confirm the selected students department wise to be unavailable with no Date Provided
@@ -2910,19 +2956,36 @@ export const getAllStudentsAccordingToAchievementsAndSkills = async (
         if (!officer) {
           // Error:
           return res.status(404).json({ message: "Officer not found" });
-        } else if (dept && year_batch) {
-          const department = officer.college_details.find(
-            (e) => e.department_name === dept && e.year_batch === year_batch
-          );
-          if (department) {
+        } else if (dept || year_batch) {
+          let department: Department[] = [];
+          if (!dept && year_batch) {
+            department = officer.college_details.filter(
+              (e) => e.year_batch === year_batch
+            );
+          } else if (dept && !year_batch) {
+            department = officer.college_details.filter(
+              (e) => e.department_name === dept
+            );
+          } else if (dept && year_batch) {
+            department = officer.college_details.filter(
+              (e) => e.department_name === dept && e.year_batch === year_batch
+            );
+          }
+
+          if (department.length !== 0) {
             const searchRegex = new RegExp(search, "i"); // Case-insensitive regex for partial string search
 
-            let students = department.student_details.filter(
-              (student) =>
-                student.achievements.some((achievement) =>
-                  searchRegex.test(achievement)
-                ) || student.skills.some((skill) => searchRegex.test(skill))
-            );
+            let students: Students[] = [];
+
+            for (let i = 0; i < department.length; i++) {
+              const filteredStudents = department[i].student_details.filter(
+                (student) =>
+                  student.achievements.some((achievement) =>
+                    searchRegex.test(achievement)
+                  ) || student.skills.some((skill) => searchRegex.test(skill))
+              );
+              students = students.concat(filteredStudents);
+            }
 
             students = students.filter((e) => {
               return e.Internship_status === false;
@@ -2939,7 +3002,9 @@ export const getAllStudentsAccordingToAchievementsAndSkills = async (
               });
             }
           } else {
-            return res.status(404).json({ message: "Department not found" });
+            return res
+              .status(404)
+              .json({ message: "Department or batch year not found" });
           }
         } else {
           const searchRegex = new RegExp(search, "i"); // Case-insensitive regex for partial string search
