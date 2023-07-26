@@ -1007,6 +1007,7 @@ export const selectedStudentsByCompaniesWithoutDates = async (
         year_batch: number;
         selected_students: Students[];
       } = req.body;
+
       const company_id = tokenVerify.data;
       if (
         !officer_id ||
@@ -1016,6 +1017,7 @@ export const selectedStudentsByCompaniesWithoutDates = async (
         selected_students.length === 0
       ) {
         // error:
+
         return res.status(400).json({ message: "Incomplete Data" });
       } else {
         // confirm the company and officer is both subscribed
@@ -1024,6 +1026,7 @@ export const selectedStudentsByCompaniesWithoutDates = async (
 
         if (!verifyOfficer || !verifyCompany) {
           // error:
+
           return res
             .status(400)
             .json({ message: "Officer or company not found" });
@@ -1468,7 +1471,8 @@ export const getStudentDetailsbyDeptAndYearByCompany = async (
     ) as jwt.JwtPayload;
     if (tokenVerify) {
       const company_id = tokenVerify.data;
-      const { year_batch, department_name, officer_id } = req.body;
+      const { department_name, officer_id } = req.body;
+      let { year_batch } = req.body;
       if (!company_id || !year_batch || !department_name || !officer_id) {
         // error:
         return res.status(400).json({ message: "Incomplete Data" });
@@ -1493,6 +1497,7 @@ export const getStudentDetailsbyDeptAndYearByCompany = async (
           //     .status(400)
           //     .json({ message: "Company has not selected any student" });
           // }
+          year_batch = parseInt(year_batch);
           const studentsInDepartment =
             foundYearBatchInCompany.selectedbyOfficer.find((e) => {
               if (
