@@ -3118,7 +3118,7 @@ export const sendMoreStudentDetails = async (req: Request, res: Response) => {
               end_date: null,
               confirmed: false,
             });
-            companySubscribed.selectedbycompany.push({
+            companySubscribed.selectedbyOfficer.push({
               department_name: department_name,
               year_batch: year_batch,
               student_details: student_details,

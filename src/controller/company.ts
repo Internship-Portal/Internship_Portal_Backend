@@ -1463,6 +1463,7 @@ export const getStudentDetailsbyDeptAndYearByCompany = async (
   res: Response
 ) => {
   try {
+   
     const bearerHeader = req.headers.authorization;
     const bearer: string = bearerHeader as string;
     const tokenVerify = jwt.verify(
@@ -1471,16 +1472,21 @@ export const getStudentDetailsbyDeptAndYearByCompany = async (
     ) as jwt.JwtPayload;
     if (tokenVerify) {
       const company_id = tokenVerify.data;
-      const { department_name, officer_id } = req.body;
-      let { year_batch } = req.body;
+     
+      const { department_name, officer_id ,year_batch } = req.body;
+      
       if (!company_id || !year_batch || !department_name || !officer_id) {
         // error:
+       
+        
         return res.status(400).json({ message: "Incomplete Data" });
       } else {
         // find the company
+     
         const foundCompany = await CompanyModel.findById({ _id: company_id });
         if (!foundCompany) {
           // error:
+        
           return res.status(400).json({ message: "Company not found" });
         } else {
           // find the year batch in the company
@@ -1497,11 +1503,12 @@ export const getStudentDetailsbyDeptAndYearByCompany = async (
           //     .status(400)
           //     .json({ message: "Company has not selected any student" });
           // }
-          year_batch = parseInt(year_batch);
+          const yearBatch = parseInt(year_batch);
+          
           const studentsInDepartment =
             foundYearBatchInCompany.selectedbyOfficer.find((e) => {
               if (
-                e.year_batch === year_batch &&
+                e.year_batch === yearBatch &&
                 e.department_name === department_name
               ) {
                 return e;
@@ -1510,9 +1517,11 @@ export const getStudentDetailsbyDeptAndYearByCompany = async (
 
           if (!studentsInDepartment) {
             // error:
+          
             return res.status(400).json({ message: "Year Batch is not valid" });
           } else {
             // Success:
+          
             return res.status(200).json({
               message: "This is get Students details by dept and year API",
               data: studentsInDepartment.student_details,
