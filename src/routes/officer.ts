@@ -37,6 +37,7 @@ import {
   getAllStudentsAccordingToAchievementsAndSkills,
   // verifyOfficerTwoStepValidation,
   confirmSelectedStudentsWithDates,
+  sendMoreStudentDetails,
 } from "../controller/officer";
 
 // Set up multer storage
@@ -159,5 +160,7 @@ router.put(
   "/getSearchStudents",
   getAllStudentsAccordingToAchievementsAndSkills
 );
+
+router.put("/setMoreStudentInCompany", sendMoreStudentDetails);
 
 export default router;
