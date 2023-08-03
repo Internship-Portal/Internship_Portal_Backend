@@ -2279,6 +2279,7 @@ export const confirmSelectedStudentsWithNoDateProvided = async (
   res: Response
 ) => {
   try {
+  
     const bearerHeader = req.headers.authorization;
     const bearer: string = bearerHeader as string;
     const tokenVerify = jwt.verify(
@@ -2287,8 +2288,10 @@ export const confirmSelectedStudentsWithNoDateProvided = async (
     ) as jwt.JwtPayload;
     if (tokenVerify) {
       // get the data from frontend
-      const { company_id, company_name, selectedstudents } = req.body;
-      if (!company_id || !selectedstudents) {
+      const { company_id, company_name, selectStudents } = req.body;
+      
+      if (!company_id || !selectStudents) {
+        
         // Error: Data not found
         return res.status(400).json({ message: "Incomplete Data" });
       } else {
@@ -2301,14 +2304,14 @@ export const confirmSelectedStudentsWithNoDateProvided = async (
             .json({ message: "Officer or Company not found" });
         } else {
           // take out the data from selectedstudents
-          const { department_name, year_batch } = selectedstudents[0];
-
+          const { department_name, year_batch } = selectStudents[0];
+         const yearBatch=parseInt(year_batch);
           let foundElement: Department | null = null;
           // find the department and year_batch in officer
           for (let i = 0; i < Officer.college_details.length; i++) {
             if (
               Officer.college_details[i].department_name === department_name &&
-              Officer.college_details[i].year_batch === year_batch
+              Officer.college_details[i].year_batch === yearBatch
             ) {
               foundElement = Officer.college_details[i];
               break;
@@ -2323,7 +2326,7 @@ export const confirmSelectedStudentsWithNoDateProvided = async (
           } else {
             // find the student in the foundElement
 
-            selectedstudents[0].student_details.map((e: Students) => {
+            selectStudents[0].student_details.map((e: Students) => {
               // check if the student is already selected for any internship or not boolean
 
               const studentDetails = foundElement?.student_details;
@@ -2700,11 +2703,15 @@ export const getAllSelectedStudentsByCompanies = async (
       if (!officer) {
         return res.status(404).json({ message: "Officer not found" });
       } else {
+        
         const { company_id, department_name, year_batch } = req.body;
         if (!company_id || !department_name || !year_batch) {
+
+        
           return res.status(400).json({ message: "Incomplete Data" });
         } else {
           // find the company in the officer
+         
           let foundCompany: subscribedCompany | null = null;
           for (let i = 0; i < officer.subscribed_company.length; i++) {
             if (officer.subscribed_company[i].company_id === company_id) {
@@ -2714,15 +2721,17 @@ export const getAllSelectedStudentsByCompanies = async (
           }
 
           if (foundCompany === null) {
+            
             return res.status(404).json({ message: "Company not found" });
           } else {
             // find the department in the company
+            const yearBatch=parseInt(year_batch)
             let foundDepartment: selectedStudentsInterface | null = null;
             for (let i = 0; i < foundCompany.selectedbycompany.length; i++) {
               if (
                 foundCompany.selectedbycompany[i].department_name ===
                   department_name &&
-                foundCompany.selectedbycompany[i].year_batch === year_batch
+                foundCompany.selectedbycompany[i].year_batch === yearBatch
               ) {
                 foundDepartment = foundCompany.selectedbycompany[i];
                 break;
@@ -2730,6 +2739,7 @@ export const getAllSelectedStudentsByCompanies = async (
             }
 
             if (foundDepartment === null) {
+            
               return res.status(404).json({ message: "Department not found" });
             } else {
               return res.status(200).json({
