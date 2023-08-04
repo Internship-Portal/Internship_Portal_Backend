@@ -37,6 +37,7 @@ import {
   getAllStudentsAccordingToAchievementsAndSkills,
   // verifyOfficerTwoStepValidation,
   confirmSelectedStudentsWithDates,
+  getMessage,
   sendMoreStudentDetails,
 } from "../controller/officer";
 
@@ -162,5 +163,7 @@ router.put(
 );
 
 router.put("/setMoreStudentInCompany", sendMoreStudentDetails);
+
+router.get("/getMessage", getMessage);
 
 export default router;
