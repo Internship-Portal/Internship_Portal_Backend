@@ -8,6 +8,7 @@ export interface MessageInterface {
   job_description: string;
   department_name: string[];
   year_batch: number[];
+  
 }
 
 // ----------------------------------------- Message Interface
