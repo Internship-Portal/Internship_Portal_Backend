@@ -10,6 +10,8 @@ import {
   // addSubscribedOfficerFromCompany,
   getdepartmentNotSelectedByCompany,
   addCancelledRequest,
+  setMessage,
+  getMessage,
   addCancelledRequestByCompany,
   getStudentDetailsbyDeptAndYearByCompany,
   getAllSubscribedOfficers,
@@ -96,5 +98,11 @@ router.put(
   "/setSelectedStudentsWithDates",
   selectedStudentsByCompaniesWithDates
 );
+
+// set message
+router.put("/setMessage", setMessage);
+
+// get message
+router.get("/getMessage", getMessage);
 
 export default router;

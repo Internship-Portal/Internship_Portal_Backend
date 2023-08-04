@@ -1,6 +1,17 @@
 import { Schema, model, Document, ObjectId } from "mongoose";
 import { batchWiseDepartments, batchwiseDepartmentsInterface } from "./company";
 import cron from "node-cron";
+
+// ----------------------------------------- Message Interface
+
+export interface MessageInterface {
+  job_description: string;
+  department_name: string[];
+  year_batch: number[];
+}
+
+// ----------------------------------------- Message Interface
+
 // Selected Students by Company Interface --------------------------
 
 export interface selectedStudentsInterface {
@@ -9,6 +20,7 @@ export interface selectedStudentsInterface {
   start_date: Date | null;
   end_date: Date | null;
   confirmed: boolean;
+  message: MessageInterface;
   student_details: Students[];
 }
 
@@ -19,7 +31,7 @@ export interface selectedStudentsInterface {
 export interface subscribeRequest {
   company_id: string;
   index: number;
-  message: string;
+  message: MessageInterface[];
   username: string;
   company_name: string;
 }
@@ -31,7 +43,7 @@ export interface subscribeRequest {
 export interface subscribedCompany {
   company_id: string;
   index: number;
-  message: string;
+  message: MessageInterface[];
   username: string;
   company_name: string;
   selectedbyOfficer: selectedStudentsInterface[];
@@ -47,7 +59,7 @@ export interface cancelledCompany {
   index: number;
   username: string;
   company_name: string;
-  message: string;
+  message: MessageInterface[];
   cancelled_by: string;
 }
 
@@ -114,6 +126,20 @@ export interface Officer extends Document {
 }
 
 // -------------------------------------------- Officer Interface
+
+// --------------------------------------------- message Schema
+export const messageSchema = new Schema<MessageInterface>({
+  job_description: {
+    type: String,
+  },
+  department_name: {
+    type: [String],
+  },
+  year_batch: {
+    type: [Number],
+  },
+});
+// --------------------------------------------- message Schema
 
 // --------------------------------------------- Student Schema
 
@@ -232,6 +258,9 @@ export const selectedStudents = new Schema<selectedStudentsInterface>({
   confirmed: {
     type: Boolean,
   },
+  message: {
+    type: messageSchema,
+  },
   student_details: {
     type: [StudentsSchema],
     default: [],
@@ -253,7 +282,7 @@ export const subscribedCompany = new Schema<subscribedCompany>({
     type: [selectedStudents],
   },
   message: {
-    type: String,
+    type: [messageSchema],
   },
   username: {
     type: String,
@@ -278,7 +307,7 @@ export const subscribeRequestFromCompany = new Schema<subscribeRequest>({
     type: Number,
   },
   message: {
-    type: String,
+    type: [messageSchema],
   },
   username: {
     type: String,
@@ -300,7 +329,7 @@ export const subscribeRequesttoCompany = new Schema<subscribeRequest>({
     type: Number,
   },
   message: {
-    type: String,
+    type: [messageSchema],
   },
   username: {
     type: String,
@@ -322,7 +351,7 @@ export const cancelledCompany = new Schema<cancelledCompany>({
     type: Number,
   },
   message: {
-    type: String,
+    type: [messageSchema],
   },
   username: {
     type: String,

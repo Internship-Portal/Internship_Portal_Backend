@@ -1,5 +1,10 @@
 import { model, Schema, Document, Types } from "mongoose";
-import { StudentsSchema, Students } from "./officer";
+import {
+  StudentsSchema,
+  Students,
+  MessageInterface,
+  messageSchema,
+} from "./officer";
 
 export interface selectedStudentsInterface {
   department_name: string;
@@ -7,6 +12,7 @@ export interface selectedStudentsInterface {
   start_date: Date | null;
   end_date: Date | null;
   confirmed: boolean;
+  message: MessageInterface;
   student_details: Students[];
 }
 
@@ -25,7 +31,7 @@ export interface cancelledOfficer {
   index: number;
   username: string;
   college_name: string;
-  message: string;
+  message: MessageInterface[];
   cancelled_by: string;
 }
 // ---------------------------------------------- subscribedOfficer Interface
@@ -36,7 +42,7 @@ export interface subscribedOfficer {
   username: string;
   college_name: string;
   index: number;
-  message: string;
+  message: MessageInterface[];
   selectedbycompany: selectedStudentsInterface[];
   selectedbyOfficer: selectedStudentsInterface[];
 }
@@ -48,7 +54,7 @@ export interface subscribeRequest {
   index: number;
   username: string;
   college_name: string;
-  message: string;
+  message: MessageInterface[];
 }
 // ---------------------------------------------- subscribeRequest Interface
 
@@ -85,6 +91,9 @@ export const selectedStudents = new Schema<selectedStudentsInterface>({
   confirmed: {
     type: Boolean,
   },
+  message: {
+    type: messageSchema,
+  },
   student_details: {
     type: [StudentsSchema],
     default: [],
@@ -103,7 +112,7 @@ const cancelledOfficer = new Schema<cancelledOfficer>({
     type: Number,
   },
   message: {
-    type: String,
+    type: [messageSchema],
   },
   username: {
     type: String,
@@ -150,7 +159,7 @@ export const subscribedOfficerSchema = new Schema<subscribedOfficer>({
     type: [selectedStudents],
   },
   message: {
-    type: String,
+    type: [messageSchema],
   },
   selectedbyOfficer: {
     type: [selectedStudents],
@@ -169,7 +178,7 @@ const subscribeRequest = new Schema<subscribeRequest>({
     type: Number,
   },
   message: {
-    type: String,
+    type: [messageSchema],
   },
   username: {
     type: String,
