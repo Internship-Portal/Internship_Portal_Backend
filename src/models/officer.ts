@@ -5,9 +5,11 @@ import cron from "node-cron";
 // ----------------------------------------- Message Interface
 
 export interface MessageInterface {
+  msg:string;
   job_description: string;
   department_name: string[];
   year_batch: number[];
+
   
 }
 
