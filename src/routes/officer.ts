@@ -19,7 +19,6 @@ import {
   addCancelledRequest,
   addSubscribeRequestToCompany,
   addSubscribedOfficerFromOfficer,
-  // giveAccessToCompanies,
   getAllRequestedCompanies,
   getAllSubscribedCompanies,
   getAllRequestsbyOfficer,
@@ -35,11 +34,23 @@ import {
   makeSelectedStudentsUnavailableConfirm,
   giveEmailToCompanyAndOfficerRegardingAccess,
   getAllStudentsAccordingToAchievementsAndSkills,
-  // verifyOfficerTwoStepValidation,
   confirmSelectedStudentsWithDates,
   getMessage,
   sendMoreStudentDetails,
 } from "../controller/officer";
+
+import {
+  loginOfficerMiddleware,
+  verifyOfficerTokenMiddleware,
+  normalMiddleware,
+  createOfficerMiddleware,
+  addDepartmentDetailsMiddleware,
+  removeDepartmentDetailsMiddleware,
+  addOneStudentDetailsMiddleware,
+  deleteOneStudentDetailsMiddleware,
+  convertStudentsCSVtoJSONMiddleware,
+  getStudentDetailsbyDeptAndYearMiddleware,
+} from "../middleware/officer";
 
 // Set up multer storage
 const storage = multer({ dest: "uploads/" });
@@ -50,46 +61,75 @@ const upload = multer();
 // Routes connected to the controllers officers function
 
 // Login Officer Route
-router.post("/loginOfficer", loginOfficerController);
+router.post("/loginOfficer", loginOfficerMiddleware, loginOfficerController);
 
 // verify the token from frontend ROute
 // router.post("/verifyOfficerTwoStepToken", verifyOfficerTwoStepValidation);
 
 // verify the token from frontend ROute
-router.post("/verifyOfficerToken", verifyOfficerByToken);
+router.post(
+  "/verifyOfficerToken",
+  verifyOfficerTokenMiddleware,
+  verifyOfficerByToken
+);
 
 // Create Officer Route
-router.post("/createOfficer", createOfficerController);
+router.post("/createOfficer", createOfficerMiddleware, createOfficerController);
 
 // Get One Officer by id
-router.get("/getOneOfficer", findOfficerController);
+router.get("/getOneOfficer", normalMiddleware, findOfficerController);
 
 // Get All Officers
-router.get("/getAll", getAllOfficerController);
+router.get("/getAll", normalMiddleware, getAllOfficerController);
 
 // Delete Officer By ID
-router.delete("/deleteOfficer", deleteOfficerController);
+router.delete("/deleteOfficer", normalMiddleware, deleteOfficerController);
 
 // Add Students details department wise, year_batch_wise
-router.put("/addCollegeDetails", addDepartmentDetails);
+router.put(
+  "/addCollegeDetails",
+  addDepartmentDetailsMiddleware,
+  addDepartmentDetails
+);
 
 // Delete Students details department wise, year_batch_wise
-router.put("/removeCollegeDetails", removeDepartmentDetails);
+router.put(
+  "/removeCollegeDetails",
+  removeDepartmentDetailsMiddleware,
+  removeDepartmentDetails
+);
 
 // Add One Student Details manually
-router.put("/addOneStudentDetails", addOneStudentDetails);
+router.put(
+  "/addOneStudentDetails",
+  addOneStudentDetailsMiddleware,
+  addOneStudentDetails
+);
 
 // Delete One Student Details manually
-router.put("/deleteOneStudentDetails", deleteOneStudentDetails);
+router.put(
+  "/deleteOneStudentDetails",
+  deleteOneStudentDetailsMiddleware,
+  deleteOneStudentDetails
+);
 
 // Route to convert CSV To JSON
-router.post("/uploadCSVOfStudents", convertStudentsCSVtoJSON);
+router.post(
+  "/uploadCSVOfStudents",
+  convertStudentsCSVtoJSONMiddleware,
+  convertStudentsCSVtoJSON
+);
 
 // Get All Departmant Details API
-router.get("/getDepartmentDetails", getDepartmentDetails);
+router.get("/getDepartmentDetails", normalMiddleware, getDepartmentDetails);
 
 // get One Department Details API
-router.post("/getStudentDetails", upload.any(), getStudentDetailsbyDeptAndYear);
+router.post(
+  "/getStudentDetails",
+  upload.any(),
+  getStudentDetailsbyDeptAndYearMiddleware,
+  getStudentDetailsbyDeptAndYear
+);
 
 // cancle request of company
 router.put("/addCancelledRequest", addCancelledRequest);
@@ -130,6 +170,7 @@ router.post("/getCompaniesBySearch", getAllCompaniesByFilterInChunksWithSearch);
 // get All available and unavailable students
 router.post(
   "/getStudentDetailsbyDeptAndYearSeparatedAvaiability",
+  getStudentDetailsbyDeptAndYearMiddleware,
   getStudentDetailsbyDeptAndYearSeparatedAvaiability
 );
 

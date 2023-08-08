@@ -7,7 +7,7 @@ import {
   verifyCompanyByToken,
   loginCompanyController,
   addSubscribeRequestToOfficer,
-  // addSubscribedOfficerFromCompany,
+  addSubscribedOfficerFromCompany,
   getdepartmentNotSelectedByCompany,
   addCancelledRequest,
   setMessage,
@@ -55,7 +55,7 @@ router.put(
 router.post("/addSubscribeRequestToOfficer", addSubscribeRequestToOfficer);
 
 // remove officer details from the request schema where company accept the request
-// router.put("/addSubscribedOfficerFromCompany", addSubscribedOfficerFromCompany);
+router.put("/addSubscribedOfficerFromCompany", addSubscribedOfficerFromCompany);
 
 // cancle request of officer
 router.put("/addCancelledRequest", addCancelledRequest);

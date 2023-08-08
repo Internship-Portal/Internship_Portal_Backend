@@ -27,6 +27,7 @@ import { sendEmail } from "./otp";
 import mongoose from "mongoose";
 import connects from "../config/db";
 import { MongoClient } from "mongodb";
+import { createStudentsIndexing } from "../config/indexing";
 
 // Delete the upload folder that is created to upload a CSV
 const deleteFolder = (folderPath: string) => {
@@ -54,72 +55,64 @@ const upload = storage.single("csvFile");
 // login Officer in the Backend Controller
 export const loginOfficerController = async (req: Request, res: Response) => {
   try {
-    if (!req.body.email_id) {
-      //Error: Email not found
-      return res.status(400).json({ message: "Email not found" });
-    } else if (!req.body.password) {
-      //Error: Password not found
-      return res.status(400).json({ message: "Password not found" });
+    let { email_id, password }: { email_id: string; password: string } =
+      req.body;
+    email_id = email_id.trim();
+    password = password.trim();
+
+    // finding an officer in database
+    const data = await OfficerModel.findOne({ email_id: email_id });
+    if (data) {
+      let foundOfficer = data;
+      const hashedPassword = foundOfficer.password;
+      // comparing the password.
+      bcrypt.compare(password, hashedPassword).then(async (results) => {
+        if (results) {
+          // Converting the id and email
+          const tokenToSave = jwt.sign(
+            { data: data._id.toString() },
+            SecretKey
+          );
+
+          return res.status(200).json({
+            message: "Login Successful",
+            data: data._id,
+            token: tokenToSave,
+          });
+
+          // Creating the OTP for two step verification for login
+          // const otp = Math.floor(100000 + Math.random() * 900000);
+
+          // Create verification Model
+          // const createdVerification = await verificationModel.create({
+          //   user_token: tokenToSave,
+          //   user: "officer",
+          //   otp: otp,
+          //   otpverified: false,
+          //   expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+          // });
+
+          // Create JWT Token to send in the response
+          // const token = jwt.sign({ id: createdVerification._id }, SecretKey, {
+          //   expiresIn: "5m",
+          // });
+
+          // Send the OTP to the officer's email
+          // Send Email
+          // sendEmail(req, otp, foundOfficer.username, "validation")
+          //   .then((response) => {
+          //Success: Login Successful
+          //   res.status(200).json({ message: response, token: token });
+          // })
+          // .catch((error) => res.status(500).json({ error: error.message }));
+        } else {
+          //Error: Wrong Password
+          return res.status(404).json({ message: "Wrong Password Error" });
+        }
+      });
     } else {
-      let { email_id, password }: { email_id: string; password: string } =
-        req.body;
-      email_id = email_id.trim();
-      password = password.trim();
-
-      // finding an officer in database
-      const data = await OfficerModel.findOne({ email_id: email_id });
-      if (data) {
-        let foundOfficer = data;
-        const hashedPassword = foundOfficer.password;
-        // comparing the password.
-        bcrypt.compare(password, hashedPassword).then(async (results) => {
-          if (results) {
-            // Converting the id and email
-            const tokenToSave = jwt.sign(
-              { data: data._id.toString() },
-              SecretKey
-            );
-
-            return res.status(200).json({
-              message: "Login Successful",
-              data: data._id,
-              token: tokenToSave,
-            });
-
-            // Creating the OTP for two step verification
-            // const otp = Math.floor(100000 + Math.random() * 900000);
-
-            // Create verification Model
-            // const createdVerification = await verificationModel.create({
-            //   user_token: tokenToSave,
-            //   user: "officer",
-            //   otp: otp,
-            //   otpverified: false,
-            //   expiresAt: new Date(Date.now() + 5 * 60 * 1000),
-            // });
-
-            // Create JWT Token to send in the response
-            // const token = jwt.sign({ id: createdVerification._id }, SecretKey, {
-            //   expiresIn: "5m",
-            // });
-
-            // Send the OTP to the officer's email
-            // Send Email
-            // sendEmail(req, otp, foundOfficer.username, "validation")
-            //   .then((response) => {
-            //Success: Login Successful
-            //   res.status(200).json({ message: response, token: token });
-            // })
-            // .catch((error) => res.status(500).json({ error: error.message }));
-          } else {
-            //Error: Wrong Password
-            return res.status(404).json({ message: "Wrong Password Error" });
-          }
-        });
-      } else {
-        //Error: Officer does not exist
-        return res.status(404).json({ message: "Officer does not exist" });
-      }
+      //Error: Officer not found
+      return res.status(404).json({ message: "Officer not found" });
     }
   } catch (e) {
     //Error: Server Problem
@@ -187,21 +180,17 @@ export const loginOfficerController = async (req: Request, res: Response) => {
 // verify Officer by Token got from frontend
 export const verifyOfficerByToken = async (req: Request, res: Response) => {
   try {
-    const bearerHeader = req.headers.authorization;
-    const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(
-      bearer.split(" ")[1],
-      SecretKey
-    ) as jwt.JwtPayload;
-    if (tokenVerify) {
+    if (req.body.tokenVerify.data) {
       //Success: data: with id and email_id
       return res.status(200).send({
         message: "Login by token Successful",
-        data: tokenVerify.data,
+        data: req.body.tokenVerify.data,
       });
     } else {
-      //Error: cannot verify token
-      res.status(400).json({ message: "Cannot verify token" });
+      //Error: Problem in verifying
+      return res
+        .status(500)
+        .json({ message: "Problem in verifying the token" });
     }
   } catch (e) {
     //Error: Problem in verifying
@@ -212,109 +201,83 @@ export const verifyOfficerByToken = async (req: Request, res: Response) => {
 // Create Officer in the Backend Controller
 export const createOfficerController = async (req: Request, res: Response) => {
   try {
-    const bearerHeader = req.headers.authorization;
-    const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(
-      bearer.split(" ")[1],
-      SecretKey
-    ) as jwt.JwtPayload;
-    if (tokenVerify) {
-      let {
-        username,
-        mobile_no,
-        password,
-        college_name,
-      }: {
-        username: string;
-        mobile_no: string;
-        password: string;
-        college_name: string;
-      } = req.body;
+    let {
+      username,
+      mobile_no,
+      password,
+      college_name,
+      tokenVerify,
+    }: {
+      username: string;
+      mobile_no: string;
+      password: string;
+      college_name: string;
+      tokenVerify: any;
+    } = req.body;
 
-      let email_id = tokenVerify.email_id.toLowerCase();
+    let email_id = tokenVerify.email_id.toLowerCase();
+    // checking if the Officer already exists in database
+    email_id = email_id.trim();
+    password = password.trim();
 
-      if (!username || !email_id || !mobile_no || !password || !college_name) {
-        //Error: anyone details not available
-        return res.status(400).json({ message: "Data Incomplete Error" });
-      } else if (!validator.isEmail(email_id)) {
-        //Error: Invalid Email id passed
-        return res.status(400).json({ message: "Invalid Email" });
-      } else if (password.length < 8) {
-        //Error: password less than 8 characters
-        return res
-          .status(400)
-          .json({ message: "password less than 8 characters" });
-      } else if (mobile_no.length < 5) {
-        //Error: mobile_no greater than 5 characters
-        return res
-          .status(400)
-          .json({ message: "mobile_no greater than 5 characters" });
-      } else {
-        // checking if the Officer already exists in database
-        email_id = email_id.trim();
-        password = password.trim();
-        const company = await CompanyModel.findOne({ email_id: email_id });
-        const officer = await OfficerModel.findOne({ email_id: email_id });
-        if (officer || company) {
-          //Error: If the data already exist
-          return res.status(400).json({
-            message: "Officer or Company already Exists with this email id",
-          });
-        } else {
-          // alloting the index.
-          const lastOfficer = await OfficerModel.findOne().sort({ _id: -1 });
-          let index: number;
+    const company = await CompanyModel.findOne({ email_id: email_id });
+    const officer = await OfficerModel.findOne({ email_id: email_id });
 
-          if (lastOfficer && lastOfficer.index === 0) {
-            // if mistake happens and index get set to 0 then next will be stored as 1
-            index = 1;
-          } else if (lastOfficer) {
-            // adding 1 to the previous officer index and storing it in our new officer
-            index = lastOfficer.index + 1;
-          } else {
-            index = 1; // Default index when no officer is found
-          }
-
-          // Password Hashing using bcrypt
-          const saltRounds = 10;
-          bcrypt
-            .hash(password, saltRounds)
-            .then((hashedPassword) => {
-              // finally creating and saving the officer
-              OfficerModel.create({
-                index: index,
-                username: username,
-                email_id: email_id,
-                password: hashedPassword,
-                mobile_no: mobile_no,
-                college_name: college_name,
-                subscribed_company: [],
-                cancelled_company: [],
-                subscribe_request_from_company: [],
-                subscribe_request_to_company: [],
-                college_details: [],
-              }).then((user) => {
-                //Success: then returning the Officer Id of the Officer.
-                return res.status(200).json({
-                  message: "Officer Created Page Successfully",
-                });
-              });
-            })
-            .catch((e) => {
-              //Error: Problem in bcrypt (Hashing)
-              return res
-                .status(500)
-                .json({ message: "error while hashing the password" });
-            });
-        }
-      }
+    if (officer || company) {
+      //Error: If the data already exist
+      return res.status(400).json({
+        message: "Officer or Company already Exists with this email id",
+      });
     } else {
-      // Error:
-      res.status(400).json({ message: "Cannot verify token" });
+      // alloting the index.
+      const lastOfficer = await OfficerModel.findOne().sort({ _id: -1 });
+      let index: number;
+
+      if (lastOfficer && lastOfficer.index === 0) {
+        // if mistake happens and index get set to 0 then next will be stored as 1
+        index = 1;
+      } else if (lastOfficer) {
+        // adding 1 to the previous officer index and storing it in our new officer
+        index = lastOfficer.index + 1;
+      } else {
+        index = 1; // Default index when no officer is found
+      }
+
+      // Password Hashing using bcrypt
+      const saltRounds = 10;
+      bcrypt
+        .hash(password, saltRounds)
+        .then((hashedPassword) => {
+          // finally creating and saving the officer
+          OfficerModel.create({
+            index: index,
+            username: username,
+            email_id: email_id,
+            password: hashedPassword,
+            mobile_no: mobile_no,
+            college_name: college_name,
+            subscribed_company: [],
+            cancelled_company: [],
+            subscribe_request_from_company: [],
+            subscribe_request_to_company: [],
+            college_details: [],
+          }).then((user) => {
+            //Success: then returning the Officer Id of the Officer.
+            return res.status(200).json({
+              message: "Officer Created Page Successfully",
+            });
+          });
+        })
+        .catch((e) => {
+          //Error: Problem in bcrypt (Hashing)
+          return res
+            .status(500)
+            .json({ message: "error while hashing the password" });
+        });
     }
-  } catch (error: any) {
-    //Error: If anything creates problem
-    return res.status(500).json({ message: "Server Error" });
+  } catch (e) {
+    //Error: Problem in verifying
+    return res.status(500).json({ message: "Problem in verifying the token" });
   }
 };
 
@@ -324,41 +287,28 @@ export const findOfficerController = async (
   res: Response
 ): Promise<Response<any, Record<string, any>>> => {
   try {
-    // verify the user
-    const bearerHeader = req.headers.authorization;
-    const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(
-      bearer.split(" ")[1],
-      SecretKey
-    ) as jwt.JwtPayload;
-    if (tokenVerify) {
-      const officerId = await OfficerModel.exists({ _id: tokenVerify.data });
-      // finding the officer by the ID got from the frontend
-      if (!officerId) {
-        let data = await OfficerModel.findById({
-          _id: tokenVerify.data,
-        }).select(" -password");
+    const { tokenVerify } = req.body;
+    const officerId = await OfficerModel.exists({ _id: tokenVerify.data });
+    // finding the officer by the ID got from the frontend
+    if (!officerId) {
+      let data = await OfficerModel.findById({
+        _id: tokenVerify.data,
+      }).select(" -password");
 
-        // checking if the officer exists or not
-        if (!data) {
-          //Error: Officer does not exist
-          return res.status(404).json({ message: "Officer not found" });
-        } else {
-          // Success: pass the data
-          return res.status(200).json({
-            message: "This is Officer findone Page",
-            data: data,
-          });
-        }
+      // checking if the officer exists or not
+      if (!data) {
+        //Error: Officer does not exist
+        return res.status(404).json({ message: "Officer not found" });
       } else {
-        // Error: Problem in verifying
-        return res.status(500).json({ message: "valid Officer not found." });
+        // Success: pass the data
+        return res.status(200).json({
+          message: "This is Officer findone Page",
+          data: data,
+        });
       }
     } else {
       // Error: Problem in verifying
-      return res
-        .status(500)
-        .json({ message: "Problem in verifying the token" });
+      return res.status(500).json({ message: "valid Officer not found." });
     }
   } catch (e) {
     // Error: Problem in server
@@ -372,40 +322,27 @@ export const getAllOfficerController = async (
   res: Response
 ): Promise<Response<any, Record<string, any>>> => {
   try {
-    // verifying the token
-    const bearerHeader = req.headers.authorization;
-    const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(
-      bearer.split(" ")[1],
-      SecretKey
-    ) as jwt.JwtPayload;
-    if (tokenVerify) {
-      const officerId = await OfficerModel.exists({ _id: tokenVerify.data });
-      // finding the officer by the ID got from the frontend
-      if (!officerId) {
-        // Collecing all officers and sending by removing some fields
-        let data = await OfficerModel.find().select(
-          "-password -college_details -subscribe_request_from_company -subscribed_company -cancelled_company -subscribe_request_to_company"
-        );
-        if (data.length !== 0) {
-          // Success: Data Found and send successfully
-          return res.json({
-            message: "This is Officer getAll page",
-            data: data,
-          });
-        } else {
-          // Error: Problem in verifying
-          return res.status(500).json({ message: "valid Officer not found." });
-        }
+    const { tokenVerify } = req.body;
+    const officerId = await OfficerModel.exists({ _id: tokenVerify.data });
+    // finding the officer by the ID got from the frontend
+    if (!officerId) {
+      // Collecing all officers and sending by removing some fields
+      let data = await OfficerModel.find().select(
+        "-password -college_details -subscribe_request_from_company -subscribed_company -cancelled_company -subscribe_request_to_company"
+      );
+      if (data.length !== 0) {
+        // Success: Data Found and send successfully
+        return res.json({
+          message: "This is Officer getAll page",
+          data: data,
+        });
       } else {
-        // Error: data not found
-        return res.status(500).json({ message: "Officers not found" });
+        // Error: Problem in verifying
+        return res.status(500).json({ message: "valid Officer not found." });
       }
     } else {
-      // Error: verifying the token
-      return res
-        .status(500)
-        .json({ message: "Problem in verifying the token" });
+      // Error: data not found
+      return res.status(500).json({ message: "Officers not found" });
     }
   } catch (e) {
     // Error: Server Error
@@ -419,32 +356,20 @@ export const deleteOfficerController = async (
   res: Response
 ): Promise<Response<any, Record<string, any>>> => {
   try {
-    const bearerHeader = req.headers.authorization;
-    const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(
-      bearer.split(" ")[1],
-      SecretKey
-    ) as jwt.JwtPayload;
-    if (tokenVerify) {
-      // check for the data and delete
-      let data = await OfficerModel.findByIdAndDelete({
-        _id: tokenVerify.data,
+    const { tokenVerify } = req.body;
+    // check for the data and delete
+    let data = await OfficerModel.findByIdAndDelete({
+      _id: tokenVerify.data,
+    });
+    if (data !== null) {
+      // Success: Data Found
+      return res.status(200).json({
+        message: "This is Officer Delete Page",
+        data: data,
       });
-      if (data !== null) {
-        // Success: Data Found
-        return res.status(200).json({
-          message: "This is Officer Delete Page",
-          data: data,
-        });
-      } else {
-        // Error: officer not deleted
-        return res.status(400).json({ message: "Cannot find Officer" });
-      }
     } else {
-      // Error: problem in token
-      return res
-        .status(500)
-        .json({ message: "Problem in verifying the token" });
+      // Error: officer not deleted
+      return res.status(400).json({ message: "Cannot find Officer" });
     }
   } catch (e) {
     // Error: Overall Error
@@ -455,32 +380,20 @@ export const deleteOfficerController = async (
 //Get Student Details
 export const getDepartmentDetails = async (req: Request, res: Response) => {
   try {
+    const { tokenVerify } = req.body;
     // verify the user
-    const bearerHeader = req.headers.authorization;
-    const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(
-      bearer.split(" ")[1],
-      SecretKey
-    ) as jwt.JwtPayload;
-    if (tokenVerify) {
-      // Searching for the id passed in params
-      const data = await OfficerModel.findById({ _id: tokenVerify.data });
-      if (!data) {
-        // Error: officer not found
-        return res.status(404).json({ message: "Officer not found" });
-      } else {
-        const sendData = data.college_details;
-
-        // Success: details
-        return res
-          .status(200)
-          .json({ message: "This is getDepartmentDetails", data: sendData });
-      }
+    // Searching for the id passed in params
+    const data = await OfficerModel.findById({ _id: tokenVerify.data });
+    if (!data) {
+      // Error: officer not found
+      return res.status(404).json({ message: "Officer not found" });
     } else {
-      // Error:
+      const sendData = data.college_details;
+
+      // Success: details
       return res
-        .status(500)
-        .json({ message: "Problem in verifying the token" });
+        .status(200)
+        .json({ message: "This is getDepartmentDetails", data: sendData });
     }
   } catch (err) {
     // Error:
@@ -496,58 +409,45 @@ export const addDepartmentDetails = async (
   res: Response
 ): Promise<Response<any, Record<string, any>>> => {
   try {
-    // verify the user
-    const bearerHeader = req.headers.authorization;
-    const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(
-      bearer.split(" ")[1],
-      SecretKey
-    ) as jwt.JwtPayload;
-    if (tokenVerify) {
-      // Find the officer by id
-      const filter = { _id: tokenVerify.data };
-      const findDepartment = await OfficerModel.findById(filter);
-      if (findDepartment?.college_details.length !== 0) {
-        // Check if findDepartment or college_details is undefined
-        const collegeDetails = findDepartment?.college_details ?? [];
+    const { tokenVerify } = req.body;
+    // Find the officer by id
+    const filter = { _id: tokenVerify.data };
+    const findDepartment = await OfficerModel.findById(filter);
+    if (findDepartment?.college_details.length !== 0) {
+      // Check if findDepartment or college_details is undefined
+      const collegeDetails = findDepartment?.college_details ?? [];
 
-        for (const department of collegeDetails) {
-          if (
-            department.department_name ===
-              req.body.college_details.department_name &&
-            department.year_batch === req.body.college_details.year_batch
-          ) {
-            // Error:
-            return res.status(400).json({
-              message: "Department Already exists in Officers details",
-            });
-          }
+      for (const department of collegeDetails) {
+        if (
+          department.department_name ===
+            req.body.college_details.department_name &&
+          department.year_batch === req.body.college_details.year_batch
+        ) {
+          // Error:
+          return res.status(400).json({
+            message: "Department Already exists in Officers details",
+          });
         }
       }
-
-      const departmentName: string = req.body.department_name;
-      const yearBatch: number = req.body.year_batch;
-      req.body.college_details.student_details.map((e: Students, i: number) => {
-        e.index = i + 1;
-        e.branch = departmentName;
-        e.year_batch = yearBatch;
-      });
-
-      let data = await OfficerModel.findOneAndUpdate(
-        filter,
-        { $push: { college_details: req.body.college_details } },
-        { new: true }
-      );
-      // Success: Add the Department Details page
-      return res.status(200).json({
-        message: "This is Officer addDepartmentDetails page",
-      });
-    } else {
-      // Error:
-      return res
-        .status(500)
-        .json({ message: "Problem in verifying the token" });
     }
+
+    const departmentName: string = req.body.department_name;
+    const yearBatch: number = req.body.year_batch;
+    req.body.college_details.student_details.map((e: Students, i: number) => {
+      e.index = i + 1;
+      e.branch = departmentName;
+      e.year_batch = yearBatch;
+    });
+
+    let data = await OfficerModel.findOneAndUpdate(
+      filter,
+      { $push: { college_details: req.body.college_details } },
+      { new: true }
+    );
+    // Success: Add the Department Details page
+    return res.status(200).json({
+      message: "This is Officer addDepartmentDetails page",
+    });
   } catch (e) {
     // Error:
     return res.status(500).json({ message: "Server Error" });
@@ -561,54 +461,39 @@ export const removeDepartmentDetails = async (
 ): Promise<Response<any, Record<string, any>>> => {
   try {
     // Verify the user
-    const bearerHeader = req.headers.authorization;
-    const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(
-      bearer.split(" ")[1],
-      SecretKey
-    ) as jwt.JwtPayload;
+    const { tokenVerify } = req.body;
+    // Find and delete the department by its id
+    const departmentDetailsId = req.body.department_id;
+    const officer = await OfficerModel.findById(tokenVerify.data);
 
-    if (tokenVerify) {
-      // Find and delete the department by its id
-      const departmentDetailsId = req.body.department_id;
-      const officer = await OfficerModel.findById(tokenVerify.data);
+    if (!officer) {
+      // Officer not found
+      return res.status(404).json({ message: "Officer not found" });
+    }
 
-      if (!officer) {
-        // Officer not found
-        return res.status(404).json({ message: "Officer not found" });
-      }
+    const departmentIndex = officer.college_details.findIndex(
+      (e: Department) => e._id == departmentDetailsId
+    );
 
-      const departmentIndex = officer.college_details.findIndex(
-        (e: Department) => e._id == departmentDetailsId
-      );
+    if (departmentIndex !== -1) {
+      // Remove the department from officer's college_details
+      officer.college_details.splice(departmentIndex, 1);
 
-      if (departmentIndex !== -1) {
-        // Remove the department from officer's college_details
-        officer.college_details.splice(departmentIndex, 1);
+      // Save the updated officer
+      const savedOfficer = await officer.save();
 
-        // Save the updated officer
-        const savedOfficer = await officer.save();
-
-        if (savedOfficer) {
-          // Success: Department removed
-          return res.status(200).json({
-            message: "Department removed successfully",
-          });
-        } else {
-          // Error: Failed to save the officer
-          return res
-            .status(500)
-            .json({ message: "Failed to save the officer" });
-        }
+      if (savedOfficer) {
+        // Success: Department removed
+        return res.status(200).json({
+          message: "Department removed successfully",
+        });
       } else {
-        // Error: Department not found in officer's college_details
-        return res.status(400).json({ message: "Department not found" });
+        // Error: Failed to save the officer
+        return res.status(500).json({ message: "Failed to save the officer" });
       }
     } else {
-      // Error: Problem in verifying the token
-      return res
-        .status(500)
-        .json({ message: "Problem in verifying the token" });
+      // Error: Department not found in officer's college_details
+      return res.status(400).json({ message: "Department not found" });
     }
   } catch (e) {
     // Error: Server Error
@@ -618,83 +503,71 @@ export const removeDepartmentDetails = async (
 
 export const addOneStudentDetails = async (req: Request, res: Response) => {
   try {
-    const bearerHeader = req.headers.authorization;
-    const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(
-      bearer.split(" ")[1],
-      SecretKey
-    ) as jwt.JwtPayload;
-    if (tokenVerify) {
-      let newStudentDetails: Students = req.body;
+    const { tokenVerify } = req.body;
+    // verify the user
+    let newStudentDetails: Students = req.body;
 
-      // Find Officer
-      const officer: Officer | null = await OfficerModel.findById({
-        _id: tokenVerify.data,
-      });
+    // Find Officer
+    const officer: Officer | null = await OfficerModel.findById({
+      _id: tokenVerify.data,
+    });
 
-      if (!officer) {
-        // Error:
-        return res.status(404).json({ error: "Officer not found" });
-      } else {
-        let departmentFound = false;
-        let studentExists = false; // Flag to check if student already exists
+    if (!officer) {
+      // Error:
+      return res.status(404).json({ error: "Officer not found" });
+    } else {
+      let departmentFound = false;
+      let studentExists = false; // Flag to check if student already exists
 
-        for (const department of officer.college_details) {
-          if (
-            department.department_name === newStudentDetails.branch &&
-            department.year_batch == newStudentDetails.year_batch
-          ) {
-            departmentFound = true;
-            for (const student of department.student_details) {
-              if (student.roll_no === newStudentDetails.roll_no) {
-                studentExists = true;
-                break; // Exit the loop once student is found
-              }
-            }
-            if (studentExists) {
+      for (const department of officer.college_details) {
+        if (
+          department.department_name === newStudentDetails.branch &&
+          department.year_batch == newStudentDetails.year_batch
+        ) {
+          departmentFound = true;
+          for (const student of department.student_details) {
+            if (student.roll_no === newStudentDetails.roll_no) {
+              studentExists = true;
               break; // Exit the loop once student is found
             }
-            newStudentDetails = {
-              ...newStudentDetails,
-              index:
-                department.student_details[
-                  department.student_details.length - 1
-                ].index + 1,
-            };
-            department.student_details.push(newStudentDetails);
           }
-        }
-
-        if (!departmentFound) {
-          newStudentDetails = { ...newStudentDetails, index: 1 };
-          const newDepartment: Department = {
-            department_name: newStudentDetails.branch,
-            year_batch: newStudentDetails.year_batch,
-            student_details: [newStudentDetails],
+          if (studentExists) {
+            break; // Exit the loop once student is found
+          }
+          newStudentDetails = {
+            ...newStudentDetails,
+            index:
+              department.student_details[department.student_details.length - 1]
+                .index + 1,
           };
-          officer.college_details.push(newDepartment);
-        }
-
-        // Save the updated officer document
-        await officer.save();
-
-        if (studentExists) {
-          // Error:
-          return res.status(400).json({
-            message: "student details Already exists",
-          });
-        } else {
-          // Success:
-          return res.status(200).json({
-            message: "One Student details added successfully",
-          });
+          department.student_details.push(newStudentDetails);
         }
       }
-    } else {
-      // Error:
-      return res
-        .status(500)
-        .json({ message: "Problem in verifying the token" });
+
+      if (!departmentFound) {
+        newStudentDetails = { ...newStudentDetails, index: 1 };
+        const newDepartment: Department = {
+          department_name: newStudentDetails.branch,
+          year_batch: newStudentDetails.year_batch,
+          student_details: [newStudentDetails],
+        };
+        officer.college_details.push(newDepartment);
+      }
+
+      // Save the updated officer document
+      await officer.save();
+
+      if (studentExists) {
+        // Error:
+        return res.status(400).json({
+          message: "student details Already exists",
+        });
+      } else {
+        // Success:
+        return res.status(200).json({
+          message: "One Student details added successfully",
+        });
+      }
     }
   } catch (err) {
     // Error:
@@ -708,131 +581,82 @@ export const addOneStudentDetails = async (req: Request, res: Response) => {
 // Delete One student data from the department in the student details
 export const deleteOneStudentDetails = async (req: Request, res: Response) => {
   try {
-    // verify the user
-    const bearerHeader = req.headers.authorization;
-    const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(
-      bearer.split(" ")[1],
-      SecretKey
-    ) as jwt.JwtPayload;
-    if (tokenVerify) {
-      // Find the officer
-      const departmentName: string = req.body.branch;
-      const departmentYearBatch: number = req.body.year_batch;
-      const officer: Officer | null = await OfficerModel.findById({
-        _id: tokenVerify.data,
-      });
+    const { tokenVerify } = req.body;
+    // Find the officer
+    const departmentName: string = req.body.branch;
+    const departmentYearBatch: number = req.body.year_batch;
+    const officer: Officer | null = await OfficerModel.findById({
+      _id: tokenVerify.data,
+    });
 
-      if (!officer) {
-        // Error:
-        return res.status(404).json({ error: "Officer not found" });
-      }
-
-      let departmentFound = false;
-      let departmentIndex = -1;
-
-      officer.college_details.forEach((department, index) => {
-        if (
-          department.department_name === departmentName &&
-          department.year_batch === departmentYearBatch
-        ) {
-          departmentFound = true;
-          departmentIndex = index;
-        }
-      });
-
-      if (!departmentFound) {
-        // Error:
-        return res.status(404).json({ error: "Department not found" });
-      }
-
-      const department = officer.college_details[departmentIndex];
-
-      if (req.body.index) {
-        const studentIndex: number = parseInt(req.body.index); // Find the department by name
-
-        // Find the student by index
-        const studentIndexToDelete = department.student_details.findIndex(
-          (student) => student.index === studentIndex
-        );
-
-        if (studentIndexToDelete === -1) {
-          // Error:
-          return res.status(404).json({ error: "Student not found" });
-        }
-
-        // Remove the student from the department
-        department.student_details.splice(studentIndexToDelete, 1);
-      } else {
-        const studentId: string = req.body.roll_no; // Find the department by name
-
-        const studentIndexToDelete = department.student_details.findIndex(
-          (student) => student.roll_no === studentId
-        );
-
-        if (studentIndexToDelete === -1) {
-          // Error:
-          return res.status(404).json({ error: "Student not found" });
-        }
-
-        // Remove the student from the department
-        department.student_details.splice(studentIndexToDelete, 1);
-      }
-
-      // Save the updated officer document
-      await officer.save();
-      // Success
-      return res.json({
-        message: "One student details deleted successfully",
-      });
-    } else {
+    if (!officer) {
       // Error:
-      return res
-        .status(500)
-        .json({ message: "Problem in verifying the token" });
+      return res.status(404).json({ error: "Officer not found" });
     }
+
+    let departmentFound = false;
+    let departmentIndex = -1;
+
+    officer.college_details.forEach((department, index) => {
+      if (
+        department.department_name === departmentName &&
+        department.year_batch === departmentYearBatch
+      ) {
+        departmentFound = true;
+        departmentIndex = index;
+      }
+    });
+
+    if (!departmentFound) {
+      // Error:
+      return res.status(404).json({ error: "Department not found" });
+    }
+
+    const department = officer.college_details[departmentIndex];
+
+    if (req.body.index) {
+      const studentIndex: number = parseInt(req.body.index); // Find the department by name
+
+      // Find the student by index
+      const studentIndexToDelete = department.student_details.findIndex(
+        (student) => student.index === studentIndex
+      );
+
+      if (studentIndexToDelete === -1) {
+        // Error:
+        return res.status(404).json({ error: "Student not found" });
+      }
+
+      // Remove the student from the department
+      department.student_details.splice(studentIndexToDelete, 1);
+    } else {
+      const studentId: string = req.body.roll_no; // Find the department by name
+
+      const studentIndexToDelete = department.student_details.findIndex(
+        (student) => student.roll_no === studentId
+      );
+
+      if (studentIndexToDelete === -1) {
+        // Error:
+        return res.status(404).json({ error: "Student not found" });
+      }
+
+      // Remove the student from the department
+      department.student_details.splice(studentIndexToDelete, 1);
+    }
+
+    // Save the updated officer document
+    await officer.save();
+    // Success
+    return res.json({
+      message: "One student details deleted successfully",
+    });
   } catch (e) {
     // Error:
     return res.status(500).json({
       message: "An Error Occured while removing the student details",
       error: e,
     });
-  }
-};
-
-const createStudentsIndexing = async (
-  officer: Officer,
-  department: string,
-  year_batch: number
-): Promise<void> => {
-  try {
-    const client = new MongoClient(
-      "mongodb+srv://admin:admin@imdb.11npizj.mongodb.net"
-    );
-    await client.connect();
-
-    const db = client.db("Internship_Portal"); // Replace 'yourDatabaseName' with your actual database name
-    const officerCollection = db.collection("officers"); // Replace 'officers' with the name of your collection
-
-    // Extract the college_details index where department_name matches
-    const collegeDetailsIndex = officer.college_details.findIndex(
-      (details: any) =>
-        details.department_name === department &&
-        details.year_batch === year_batch
-    );
-
-    // Access the college_details subdocument and create the index for student_details field
-    await officerCollection.createIndex(
-      {
-        [`college_details.${collegeDetailsIndex}.student_details.achievements`]: 1,
-        [`college_details.${collegeDetailsIndex}.student_details.skills`]: 1,
-      },
-      { background: true } // Optional: You can specify additional index options
-    );
-
-    await client.close();
-  } catch (error) {
-    console.error("Error creating index:", error);
   }
 };
 
@@ -897,124 +721,106 @@ function convertToDateIfValidFormat(dateString: any) {
 
 export const convertStudentsCSVtoJSON = async (req: Request, res: Response) => {
   try {
+    const { tokenVerify } = req.body;
     // verify the user
-    const bearerHeader = req.headers.authorization;
-    const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(
-      bearer.split(" ")[1],
-      SecretKey
-    ) as jwt.JwtPayload;
-    if (tokenVerify) {
-      const officer: Officer | null = await OfficerModel.findById({
-        _id: tokenVerify.data,
-      });
-      let departmentFound = false;
+    const officer: Officer | null = await OfficerModel.findById({
+      _id: tokenVerify.data,
+    });
+    let departmentFound = false;
 
-      // Checking for the officer details in database
-      // converting the csv file to JSON
-      let newStudentDetails;
+    // Checking for the officer details in database
+    // converting the csv file to JSON
+    let newStudentDetails;
 
-      // "promisify" function from the util module to convert the upload function into a promise
-      const uploadPromise = promisify(upload);
+    // "promisify" function from the util module to convert the upload function into a promise
+    const uploadPromise = promisify(upload);
 
-      // await the completion of the upload operation using the uploadPromise variable.
-      await uploadPromise(req, res);
+    // await the completion of the upload operation using the uploadPromise variable.
+    await uploadPromise(req, res);
 
-      if (!officer) {
-        return res.status(404).json({ error: "Officer not found" });
+    if (!officer) {
+      return res.status(404).json({ error: "Officer not found" });
+    } else {
+      // if file does not exist
+      if (!req.file) {
+        // Error:
+        return res.status(404).json({ error: "No file uploaded" });
       } else {
-        // if file does not exist
-        if (!req.file) {
-          // Error:
-          return res.status(404).json({ error: "No file uploaded" });
-        } else {
-          for (const department of officer.college_details) {
-            if (
-              department.department_name === req.body.department_name &&
-              department.year_batch == req.body.year_batch
-            ) {
-              departmentFound = true;
-            }
-          }
-          if (departmentFound) {
-            // Error:
-            return res
-              .status(400)
-              .json({ error: "Department already exists in Officer" });
-          } else {
-            // Check if the file exists and convert to json format.
-            const csvFilePath = req.file.path;
-            if (!csvFilePath) {
-              // Error:
-              return res.status(500).json({
-                message: "CSV file uploaded not found",
-              });
-            }
-            newStudentDetails = await csvtojson().fromFile(csvFilePath);
-
-            // Delete the file that was stored by multer in our dir.
-            deleteFolder(req.file.destination);
-
-            // Check if data from csv file is set in newStudentDetails variable.
-            if (!newStudentDetails) {
-              return res.status(500).json({
-                message: "CSV file cannot be converted not found",
-              });
-            }
-
-            newStudentDetails.map((e, i) => {
-              e.index = i + 1;
-              if (
-                e.internship_start_date !== null &&
-                e.internship_end_date !== null &&
-                e.internship_start_date.length !== 0 &&
-                e.internship_end_date.length !== 0
-              ) {
-                e.internship_start_date = convertToDateIfValidFormat(
-                  e.internship_start_date
-                );
-                e.internship_end_date = convertToDateIfValidFormat(
-                  e.internship_end_date
-                );
-              }
-            });
-
-            // if departmentname and year batch exists or not
-            if (!req.body.department_name || !req.body.year_batch) {
-              // Error:
-              return res.status(400).json({ error: "Data not uploaded" });
-            }
-
-            const newDepartment: Department = {
-              department_name: req.body.department_name,
-              year_batch: req.body.year_batch,
-              student_details: [...newStudentDetails],
-            };
-
-            // push the new Department created
-            officer.college_details.push(newDepartment);
-
-            // Save the updated officer document
-            await officer.save();
-
-            createStudentsIndexing(
-              officer,
-              req.body.department_name,
-              req.body.year_batch
-            );
-
-            // Success:
-            return res.status(200).json({
-              message: "CSV details added successfully",
-            });
+        for (const department of officer.college_details) {
+          if (
+            department.department_name === req.body.department_name &&
+            department.year_batch == req.body.year_batch
+          ) {
+            departmentFound = true;
           }
         }
+        if (departmentFound) {
+          // Error:
+          return res
+            .status(400)
+            .json({ error: "Department already exists in Officer" });
+        } else {
+          // Check if the file exists and convert to json format.
+          const csvFilePath = req.file.path;
+          if (!csvFilePath) {
+            // Error:
+            return res.status(500).json({
+              message: "CSV file uploaded not found",
+            });
+          }
+          newStudentDetails = await csvtojson().fromFile(csvFilePath);
+
+          // Delete the file that was stored by multer in our dir.
+          deleteFolder(req.file.destination);
+
+          // Check if data from csv file is set in newStudentDetails variable.
+          if (!newStudentDetails) {
+            return res.status(500).json({
+              message: "CSV file cannot be converted not found",
+            });
+          }
+
+          newStudentDetails.map((e, i) => {
+            e.index = i + 1;
+            if (
+              e.internship_start_date !== null &&
+              e.internship_end_date !== null &&
+              e.internship_start_date.length !== 0 &&
+              e.internship_end_date.length !== 0
+            ) {
+              e.internship_start_date = convertToDateIfValidFormat(
+                e.internship_start_date
+              );
+              e.internship_end_date = convertToDateIfValidFormat(
+                e.internship_end_date
+              );
+            }
+          });
+
+          const newDepartment: Department = {
+            department_name: req.body.department_name,
+            year_batch: req.body.year_batch,
+            student_details: [...newStudentDetails],
+          };
+
+          // push the new Department created
+          officer.college_details.push(newDepartment);
+
+          // Save the updated officer document
+          await officer.save();
+
+          createStudentsIndexing(
+            officer,
+            req.body.department_name,
+            req.body.year_batch
+          );
+
+          // Success:
+          return res.status(200).json({
+            message: "CSV details added successfully",
+          });
+        }
       }
-    } else {
-      // Error:
-      return res
-        .status(500)
-        .json({ message: "Problem in verifying the token" });
     }
   } catch (e) {
     // Error:
@@ -1031,55 +837,42 @@ export const getStudentDetailsbyDeptAndYear = async (
   res: Response
 ) => {
   try {
+    const { tokenVerify } = req.body;
     // verify the user
-    const bearerHeader = req.headers.authorization;
-    const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(
-      bearer.split(" ")[1],
-      SecretKey
-    ) as jwt.JwtPayload;
-    if (tokenVerify) {
-      let { department_name, year_batch } = req.body;
-      let id = tokenVerify.data;
-      if (!department_name || !year_batch || !id) {
-        // Error:
-        return res.status(400).json({ error: "Incomplete Data" });
-      }
-
-      const data = await OfficerModel.findById({ _id: id });
-      if (!data) {
-        // Error:
-        return res.status(400).json({ error: "Officer not found" });
-      } else {
-        // bool for data bot found
-        let sendData = false;
-        data.college_details.map((e) => {
-          if (
-            e.department_name === department_name &&
-            e.year_batch == year_batch
-          ) {
-            //Success: if we both the department and year_batch
-            sendData = true;
-
-            return res.status(200).json({
-              message: "This is get Students details by dept and year API",
-              data: e,
-            });
-          }
-        });
-        // if the department does not exist in officer details.
-        if (!sendData) {
-          // Error:
-          return res
-            .status(400)
-            .json({ message: "Department not exist in officer details." });
-        }
-      }
-    } else {
+    let { department_name, year_batch } = req.body;
+    let id = tokenVerify.data;
+    if (!department_name || !year_batch || !id) {
       // Error:
-      return res
-        .status(500)
-        .json({ message: "Problem in verifying the token" });
+      return res.status(400).json({ error: "Incomplete Data" });
+    }
+
+    const data = await OfficerModel.findById({ _id: id });
+    if (!data) {
+      // Error:
+      return res.status(400).json({ error: "Officer not found" });
+    } else {
+      // bool for data bot found
+      let foundData = data.college_details.find((e) => {
+        if (
+          e.department_name === department_name &&
+          e.year_batch == year_batch
+        ) {
+          //Success: if we both the department and year_batch
+          return e;
+        }
+      });
+      // if the department does not exist in officer details.
+      if (!foundData) {
+        // Error:
+        return res
+          .status(400)
+          .json({ message: "Department not exist in officer details." });
+      } else {
+        return res.status(200).json({
+          message: "This is get Students details by dept and year API",
+          data: foundData,
+        });
+      }
     }
   } catch (e) {
     // Error:
@@ -1094,65 +887,53 @@ export const getStudentDetailsbyDeptAndYearSeparatedAvaiability = async (
   res: Response
 ) => {
   try {
+    const { tokenVerify } = req.body;
     // verify the user
-    const bearerHeader = req.headers.authorization;
-    const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(
-      bearer.split(" ")[1],
-      SecretKey
-    ) as jwt.JwtPayload;
-    if (tokenVerify) {
-      let { department_name, year_batch } = req.body;
-      let id = tokenVerify.data;
-      if (!department_name || !year_batch || !id) {
-        // Error:
-        return res.status(400).json({ error: "Incomplete Data" });
-      }
-
-      const data = await OfficerModel.findById({ _id: id });
-      if (!data) {
-        // Error:
-        return res.status(400).json({ error: "Officer not found" });
-      } else {
-        // bool for data bot found
-        let Departmant: Department | undefined = undefined;
-        Departmant = data.college_details.find(
-          (e) =>
-            e.department_name === department_name && e.year_batch == year_batch
-        );
-        // if the department does not exist in officer details.
-        if (!Departmant) {
-          // Error:
-          return res
-            .status(400)
-            .json({ message: "Department not exist in officer details." });
-        } else {
-          let availableStudents: Students[] = [];
-          let unavailableStudents: Students[] = [];
-          Departmant.student_details.map((e: Students) => {
-            if (e.Internship_status === false) {
-              // if the student is not available
-              unavailableStudents.push(e);
-            } else {
-              // if the student is available
-              availableStudents.push(e);
-            }
-          });
-          //Success: if we both the department and year_batch
-          return res.status(200).json({
-            message: "This is get Students details by dept and year API",
-            data: {
-              availableStudents: availableStudents,
-              unavailableStudents: unavailableStudents,
-            },
-          });
-        }
-      }
-    } else {
+    let { department_name, year_batch } = req.body;
+    let id = tokenVerify.data;
+    if (!department_name || !year_batch || !id) {
       // Error:
-      return res
-        .status(500)
-        .json({ message: "Problem in verifying the token" });
+      return res.status(400).json({ error: "Incomplete Data" });
+    }
+
+    const data = await OfficerModel.findById({ _id: id });
+    if (!data) {
+      // Error:
+      return res.status(400).json({ error: "Officer not found" });
+    } else {
+      // bool for data bot found
+      let Departmant: Department | undefined = undefined;
+      Departmant = data.college_details.find(
+        (e) =>
+          e.department_name === department_name && e.year_batch == year_batch
+      );
+      // if the department does not exist in officer details.
+      if (!Departmant) {
+        // Error:
+        return res
+          .status(400)
+          .json({ message: "Department not exist in officer details." });
+      } else {
+        let availableStudents: Students[] = [];
+        let unavailableStudents: Students[] = [];
+        Departmant.student_details.map((e: Students) => {
+          if (e.Internship_status === false) {
+            // if the student is not available
+            unavailableStudents.push(e);
+          } else {
+            // if the student is available
+            availableStudents.push(e);
+          }
+        });
+        //Success: if we both the department and year_batch
+        return res.status(200).json({
+          message: "This is get Students details by dept and year API",
+          data: {
+            availableStudents: availableStudents,
+            unavailableStudents: unavailableStudents,
+          },
+        });
+      }
     }
   } catch (e) {
     // Error:
@@ -1168,95 +949,84 @@ export const addSubscribeRequestToCompany = async (
   res: Response
 ) => {
   try {
-    const bearerHeader = req.headers.authorization;
-    const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(
-      bearer.split(" ")[1],
-      SecretKey
-    ) as jwt.JwtPayload;
-    if (tokenVerify) {
-      const { _id, message } = req.body;
-      if (!_id || !message) {
-        // Error:
-        return res.status(400).json({ message: "Incomplete Data" });
-      } else {
-        // Find Officer and Company in both
-        const officerData = await OfficerModel.findById({
-          _id: tokenVerify.data,
-        });
-        const companydata = await CompanyModel.findById({ _id: _id });
-        if (companydata && officerData) {
-          // check if the company is already requested subscription or not
+    const { tokenVerify } = req.body;
+    const { _id, message } = req.body;
+    if (!_id || !message) {
+      // Error:
+      return res.status(400).json({ message: "Incomplete Data" });
+    } else {
+      // Find Officer and Company in both
+      const officerData = await OfficerModel.findById({
+        _id: tokenVerify.data,
+      });
+      const companydata = await CompanyModel.findById({ _id: _id });
+      if (companydata && officerData) {
+        // check if the company is already requested subscription or not
 
-          const foundInRequestToCompany =
-            officerData.subscribe_request_to_company.some(
-              (e) => e.company_id === _id
-            );
+        const foundInRequestToCompany =
+          officerData.subscribe_request_to_company.some(
+            (e) => e.company_id === _id
+          );
 
-          const foundInRequestFromCompany =
-            officerData.subscribe_request_from_company.some(
-              (e) => e.company_id === _id
-            );
+        const foundInRequestFromCompany =
+          officerData.subscribe_request_from_company.some(
+            (e) => e.company_id === _id
+          );
 
-          const foundInSubscribedCompanies =
-            officerData.subscribed_company.some((e) => e.company_id === _id);
+        const foundInSubscribedCompanies = officerData.subscribed_company.some(
+          (e) => e.company_id === _id
+        );
 
-          if (
-            foundInRequestToCompany === false &&
-            foundInRequestFromCompany === false &&
-            foundInSubscribedCompanies === false
-          ) {
-            const dataCompany = {
-              officer_id: officerData._id,
-              index: officerData.index,
-              message: message,
-              college_name: officerData.college_name,
-              username: officerData.username,
-            };
-            const dataOfficer = {
-              company_id: companydata._id,
-              index: companydata.index,
-              message: message,
-              username: companydata.username,
-              company_name: companydata.company_name,
-            };
+        if (
+          foundInRequestToCompany === false &&
+          foundInRequestFromCompany === false &&
+          foundInSubscribedCompanies === false
+        ) {
+          const dataCompany = {
+            officer_id: officerData._id,
+            index: officerData.index,
+            message: message,
+            college_name: officerData.college_name,
+            username: officerData.username,
+          };
+          const dataOfficer = {
+            company_id: companydata._id,
+            index: companydata.index,
+            message: message,
+            username: companydata.username,
+            company_name: companydata.company_name,
+          };
 
-            // push the data in company in subscribe_request_from_officer
-            companydata.subscribe_request_from_officer.push(dataCompany);
+          // push the data in company in subscribe_request_from_officer
+          companydata.subscribe_request_from_officer.push(dataCompany);
 
-            // push the data in officer in subscribe_request_to_company
-            officerData.subscribe_request_to_company.push(dataOfficer);
+          // push the data in officer in subscribe_request_to_company
+          officerData.subscribe_request_to_company.push(dataOfficer);
 
-            // save
-            const savedCompany = await companydata.save();
-            const savedOfficer = await officerData.save();
+          // save
+          const savedCompany = await companydata.save();
+          const savedOfficer = await officerData.save();
 
-            if (savedCompany && savedOfficer) {
-              // successfully saved the data
-              return res.status(200).json({ message: "Request Sent" });
-            } else {
-              // Error:
-              return res
-                .status(400)
-                .json({ message: "Request cannot be sent" });
-            }
+          if (savedCompany && savedOfficer) {
+            // successfully saved the data
+            return res.status(200).json({ message: "Request Sent" });
           } else {
             // Error:
-            return res.status(400).json({
-              message:
-                "Already requested to subscribe or already subscribed the company",
-            });
+            return res.status(400).json({ message: "Request cannot be sent" });
           }
         } else {
           // Error:
-          return res
-            .status(400)
-            .json({ message: "Company or officer does not exist" });
+          return res.status(400).json({
+            message:
+              "Already requested to subscribe or already subscribed the company",
+          });
         }
+      } else {
+        // Error:
+        return res
+          .status(400)
+          .json({ message: "Company or officer does not exist" });
       }
-    } else {
-      // Error:
-      return res.status(400).json({ message: "Token not found" });
     }
   } catch (e) {
     // Error:
@@ -1267,91 +1037,79 @@ export const addSubscribeRequestToCompany = async (
 // cancle the request of companies by companies and add that data in both officer and company cancelled schema
 export const addCancelledRequest = async (req: Request, res: Response) => {
   try {
-    const bearerHeader = req.headers.authorization;
-    const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(
-      bearer.split(" ")[1],
-      SecretKey
-    ) as jwt.JwtPayload;
-    if (tokenVerify) {
-      // Find the data in company
-      const { company_id, message } = req.body;
-      const company = await CompanyModel.findById({ _id: company_id });
-      if (company) {
-        const officer = await OfficerModel.findById({ _id: tokenVerify.data });
-        if (officer) {
-          let found_in_Officer = false,
-            found_in_Company = false;
-          // remove the requested data from officer
-          officer.subscribe_request_from_company =
-            officer.subscribe_request_from_company.filter((obj) => {
-              if (obj.company_id === company_id) {
-                found_in_Officer = true;
-              }
-              return obj.company_id !== company_id;
-            });
+    const { tokenVerify } = req.body;
+    // Find the data in company
+    const { company_id, message } = req.body;
+    const company = await CompanyModel.findById({ _id: company_id });
+    if (company) {
+      const officer = await OfficerModel.findById({ _id: tokenVerify.data });
+      if (officer) {
+        let found_in_Officer = false,
+          found_in_Company = false;
+        // remove the requested data from officer
+        officer.subscribe_request_from_company =
+          officer.subscribe_request_from_company.filter((obj) => {
+            if (obj.company_id === company_id) {
+              found_in_Officer = true;
+            }
+            return obj.company_id !== company_id;
+          });
 
-          // remove the requested data from company
-          company.subscribe_request_to_officer =
-            company.subscribe_request_to_officer.filter((obj) => {
-              if (obj.officer_id === tokenVerify.data) {
-                found_in_Company = true;
-              }
-              return obj.officer_id !== tokenVerify.data;
-            });
+        // remove the requested data from company
+        company.subscribe_request_to_officer =
+          company.subscribe_request_to_officer.filter((obj) => {
+            if (obj.officer_id === tokenVerify.data) {
+              found_in_Company = true;
+            }
+            return obj.officer_id !== tokenVerify.data;
+          });
 
-          if (!found_in_Company || !found_in_Officer) {
-            return res.status(400).json({ message: "Invalid Request" });
-          }
+        if (!found_in_Company || !found_in_Officer) {
+          return res.status(400).json({ message: "Invalid Request" });
+        }
 
-          // add cancelled requested data to the officer
-          const cancelOfficer = {
-            company_id: company_id,
-            index: company.index,
-            message: message,
-            username: company.username,
-            company_name: company.company_name,
-            cancelled_by: "officer",
-          };
-          officer.cancelled_company.push(cancelOfficer);
+        // add cancelled requested data to the officer
+        const cancelOfficer = {
+          company_id: company_id,
+          index: company.index,
+          message: message,
+          username: company.username,
+          company_name: company.company_name,
+          cancelled_by: "officer",
+        };
+        officer.cancelled_company.push(cancelOfficer);
 
-          // add cancelled requested data to the company
-          const cancelCompany = {
-            officer_id: tokenVerify.data,
-            index: officer.index,
-            message: message,
-            college_name: officer.college_name,
-            username: officer.username,
-            cancelled_by: "officer",
-          };
-          company.cancelled_officer.push(cancelCompany);
+        // add cancelled requested data to the company
+        const cancelCompany = {
+          officer_id: tokenVerify.data,
+          index: officer.index,
+          message: message,
+          college_name: officer.college_name,
+          username: officer.username,
+          cancelled_by: "officer",
+        };
+        company.cancelled_officer.push(cancelCompany);
 
-          // save
-          const savedCompany = await company.save();
-          const savedOfficer = await officer.save();
+        // save
+        const savedCompany = await company.save();
+        const savedOfficer = await officer.save();
 
-          if (savedCompany && savedOfficer) {
-            // Success :
-            return res.status(200).json({
-              message: "Cancelled the company request",
-            });
-          } else {
-            // Error:
-            return res.status(500).json({ message: "Cannot cancel request" });
-          }
+        if (savedCompany && savedOfficer) {
+          // Success :
+          return res.status(200).json({
+            message: "Cancelled the company request",
+          });
         } else {
           // Error:
-          return res.status(404).json({ message: "Officer not found" });
+          return res.status(500).json({ message: "Cannot cancel request" });
         }
       } else {
         // Error:
-        return res.status(400).json({ message: "Company not found" });
+        return res.status(404).json({ message: "Officer not found" });
       }
     } else {
       // Error:
-      return res
-        .status(500)
-        .json({ message: "Problem in verifying the token" });
+      return res.status(400).json({ message: "Company not found" });
     }
   } catch (e) {
     // Error:
@@ -1379,7 +1137,7 @@ export const addCancelledRequestByOfficer = async (
         .json({ message: "Problem in verifying the token" });
     }
 
-    const { company_id, message, selectedstudents } = req.body;
+    const { company_id, message } = req.body;
 
     if (!company_id || !message) {
       // Error: Incomplete Data

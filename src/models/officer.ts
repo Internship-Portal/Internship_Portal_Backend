@@ -1,16 +1,13 @@
 import { Schema, model, Document, ObjectId } from "mongoose";
 import { batchWiseDepartments, batchwiseDepartmentsInterface } from "./company";
-import cron from "node-cron";
 
 // ----------------------------------------- Message Interface
 
 export interface MessageInterface {
-  msg:string;
+  msg: string;
   job_description: string;
   department_name: string[];
   year_batch: number[];
-
-  
 }
 
 // ----------------------------------------- Message Interface
@@ -230,17 +227,6 @@ export const StudentsSchema = new Schema<Students>({
   },
 });
 
-// StudentsSchema.pre<Students>("save", function (next) {
-//   const currentDate = new Date();
-//   if (this.internship_end_date && this.internship_end_date == currentDate) {
-//     this.Internship_status = false;
-//     this.current_internship = null;
-//     this.internship_start_date = null;
-//     this.internship_end_date = null;
-//   }
-//   next();
-// });
-
 // ----------------------------------------------- Student Schema
 
 // Selected Students by Company Schema --------------------------
@@ -432,50 +418,6 @@ const OfficerSchema = new Schema<Officer>({
 });
 
 // ----------------------------------------------- Officer Schema
-
-// ----------------------------------------------- Make Students Available
-
-cron.schedule("0 0 * * *", async () => {
-  // fetching all the officers
-  await OfficerModel.find({}, (err: any, data: any) => {
-    if (err) {
-      console.log(err);
-    } else {
-      data.forEach((officer: Officer) => {
-        // Checking each officer college details
-        officer.college_details.forEach((department) => {
-          // Checking each department student details
-          department.student_details.forEach((student) => {
-            const currentDate = new Date();
-            if (
-              student.internship_end_date &&
-              student.internship_end_date <= currentDate
-            ) {
-              // making the student available if the internship end
-              // date is less than or equal to current date
-              student.Internship_status = false;
-              student.current_internship = null;
-              student.internship_start_date = null;
-              student.internship_end_date = null;
-            }
-          });
-        });
-        // saving the officer
-        officer.save();
-      });
-      // printing the date on which the students are updated
-      const currentDate = new Date();
-      const year = currentDate.getFullYear();
-      const month = String(currentDate.getMonth() + 1).padStart(2, "0");
-      const day = String(currentDate.getDate()).padStart(2, "0");
-
-      const formattedDate = `${year}/${month}/${day}`;
-      console.log(`Students Updated on date ${formattedDate}`);
-    }
-  });
-});
-
-// ----------------------------------------------- Make Students Available
 
 const OfficerModel = model<Officer>("Officer", OfficerSchema);
 
