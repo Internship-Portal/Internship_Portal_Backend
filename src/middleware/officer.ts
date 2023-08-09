@@ -34,9 +34,9 @@ export const loginOfficerMiddleware = async (
   next: NextFunction
 ) => {
   try {
-    const { username, password } = req.body;
+    const { email_id, password } = req.body;
 
-    const requiredFields = ["username", "password"];
+    const requiredFields = ["email_id", "password"];
     const missingFields: string[] = [];
 
     for (const field of requiredFields) {
@@ -307,26 +307,6 @@ export const convertStudentsCSVtoJSONMiddleware = async (
   try {
     const tokenVerify: any = extractTokenData(req, res);
     req.body.tokenVerify = tokenVerify;
-    let { department_name, year_batch } = req.body;
-
-    const requiredFields = ["department_name", "year_batch"];
-
-    const missingFields: string[] = [];
-
-    for (const field of requiredFields) {
-      if (!req.body[field]) {
-        missingFields.push(field);
-      }
-    }
-
-    if (missingFields.length > 0) {
-      // Error
-      return res.status(400).json({
-        message: `The following fields are required: ${missingFields.join(
-          ", "
-        )}`,
-      });
-    }
     next();
   } catch (error: any) {
     //Error: If anything creates problem
@@ -415,6 +395,265 @@ export const addCancelledRequestMiddleware = async (
     let { company_id, message } = req.body;
 
     const requiredFields = ["company_id", "message"];
+
+    const missingFields: string[] = [];
+
+    for (const field of requiredFields) {
+      if (!req.body[field]) {
+        missingFields.push(field);
+      }
+    }
+
+    if (missingFields.length > 0) {
+      // Error
+      return res.status(400).json({
+        message: `The following fields are required: ${missingFields.join(
+          ", "
+        )}`,
+      });
+    }
+    next();
+  } catch (error: any) {
+    //Error: If anything creates problem
+    return res.status(500).json({ message: "Server Error" });
+  }
+};
+
+export const getAllCompaniesByFilterInChunksWithSearchMiddleware = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const tokenVerify: any = extractTokenData(req, res);
+    req.body.tokenVerify = tokenVerify;
+    let { search } = req.body;
+
+    const requiredFields = ["search"];
+
+    const missingFields: string[] = [];
+
+    for (const field of requiredFields) {
+      if (!req.body[field]) {
+        missingFields.push(field);
+      }
+    }
+
+    if (missingFields.length > 0) {
+      // Error
+      return res.status(400).json({
+        message: `The following fields are required: ${missingFields.join(
+          ", "
+        )}`,
+      });
+    }
+    next();
+  } catch (error: any) {
+    //Error: If anything creates problem
+    return res.status(500).json({ message: "Server Error" });
+  }
+};
+
+export const confirmSelectedStudentsWithDatesMiddlware = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const tokenVerify: any = extractTokenData(req, res);
+    req.body.tokenVerify = tokenVerify;
+    let { company_id, company_name, selectedstudents, start_date, end_date } =
+      req.body;
+
+    const requiredFields = [
+      "company_id",
+      "company_name",
+      "selectedstudents",
+      "start_date",
+      "end_date",
+    ];
+
+    const missingFields: string[] = [];
+
+    for (const field of requiredFields) {
+      if (!req.body[field]) {
+        missingFields.push(field);
+      }
+    }
+
+    if (missingFields.length > 0) {
+      // Error
+      return res.status(400).json({
+        message: `The following fields are required: ${missingFields.join(
+          ", "
+        )}`,
+      });
+    }
+    next();
+  } catch (error: any) {
+    //Error: If anything creates problem
+    return res.status(500).json({ message: "Server Error" });
+  }
+};
+
+export const confirmSelectedStudentsWithNoDateProvidedMiddleware = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const tokenVerify: any = extractTokenData(req, res);
+    req.body.tokenVerify = tokenVerify;
+    let { company_id, company_name, selectedstudents } = req.body;
+
+    const requiredFields = ["company_id", "company_name", "selectedstudents"];
+
+    const missingFields: string[] = [];
+
+    for (const field of requiredFields) {
+      if (!req.body[field]) {
+        missingFields.push(field);
+      }
+    }
+
+    if (missingFields.length > 0) {
+      // Error
+      return res.status(400).json({
+        message: `The following fields are required: ${missingFields.join(
+          ", "
+        )}`,
+      });
+    }
+    next();
+  } catch (error: any) {
+    //Error: If anything creates problem
+    return res.status(500).json({ message: "Server Error" });
+  }
+};
+
+export const getAllSelectedStudentsByCompaniesMiddleware = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const tokenVerify: any = extractTokenData(req, res);
+    req.body.tokenVerify = tokenVerify;
+    let { company_id, company_name, selectedstudents } = req.body;
+
+    const requiredFields = ["company_id", "company_name", "selectedstudents"];
+
+    const missingFields: string[] = [];
+
+    for (const field of requiredFields) {
+      if (!req.body[field]) {
+        missingFields.push(field);
+      }
+    }
+
+    if (missingFields.length > 0) {
+      // Error
+      return res.status(400).json({
+        message: `The following fields are required: ${missingFields.join(
+          ", "
+        )}`,
+      });
+    }
+    next();
+  } catch (error: any) {
+    //Error: If anything creates problem
+    return res.status(500).json({ message: "Server Error" });
+  }
+};
+
+export const getAllStudentsAccordingToAchievementsAndSkillsMiddleware = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const tokenVerify: any = extractTokenData(req, res);
+    req.body.tokenVerify = tokenVerify;
+    let { search, dept, year_batch } = req.body;
+
+    const requiredFields = ["search", "dept", "year_batch"];
+
+    const missingFields: string[] = [];
+
+    for (const field of requiredFields) {
+      if (!req.body[field]) {
+        missingFields.push(field);
+      }
+    }
+
+    if (missingFields.length > 0) {
+      // Error
+      return res.status(400).json({
+        message: `The following fields are required: ${missingFields.join(
+          ", "
+        )}`,
+      });
+    }
+    next();
+  } catch (error: any) {
+    //Error: If anything creates problem
+    return res.status(500).json({ message: "Server Error" });
+  }
+};
+
+export const sendMoreStudentDetailsMiddleware = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const tokenVerify: any = extractTokenData(req, res);
+    req.body.tokenVerify = tokenVerify;
+    let { department_name, year_batch, student_details, company_id, message } =
+      req.body;
+
+    const requiredFields = [
+      "department_name",
+      "year_batch",
+      "student_details",
+      "company_id",
+      "message",
+    ];
+
+    const missingFields: string[] = [];
+
+    for (const field of requiredFields) {
+      if (!req.body[field]) {
+        missingFields.push(field);
+      }
+    }
+
+    if (missingFields.length > 0) {
+      // Error
+      return res.status(400).json({
+        message: `The following fields are required: ${missingFields.join(
+          ", "
+        )}`,
+      });
+    }
+    next();
+  } catch (error: any) {
+    //Error: If anything creates problem
+    return res.status(500).json({ message: "Server Error" });
+  }
+};
+
+export const getMessageMiddleware = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const tokenVerify: any = extractTokenData(req, res);
+    req.body.tokenVerify = tokenVerify;
+    let { company_id } = req.body;
+
+    const requiredFields = ["company_id"];
 
     const missingFields: string[] = [];
 

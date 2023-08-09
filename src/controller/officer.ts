@@ -797,6 +797,12 @@ export const convertStudentsCSVtoJSON = async (req: Request, res: Response) => {
             }
           });
 
+          // if departmentname and year batch exists or not
+          if (!req.body.department_name || !req.body.year_batch) {
+            // Error:
+            return res.status(400).json({ error: "Data not uploaded" });
+          }
+
           const newDepartment: Department = {
             department_name: req.body.department_name,
             year_batch: req.body.year_batch,
@@ -1226,103 +1232,92 @@ export const addSubscribedOfficerFromOfficer = async (
   res: Response
 ) => {
   try {
-    const bearerHeader = req.headers.authorization;
-    const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(
-      bearer.split(" ")[1],
-      SecretKey
-    ) as jwt.JwtPayload;
-    if (tokenVerify) {
-      // Find the Company
-      const { company_id, message } = req.body;
-      // check the data came from frontend or not
-      if (!company_id || !message) {
-        // Error:
-        return res.status(400).json({ message: "Incomplete Data" });
-      } else {
-        const company = await CompanyModel.findById({
-          _id: company_id,
+    // Find the token
+    const { tokenVerify } = req.body;
+    // Find the Company
+    const { company_id, message } = req.body;
+    // check the data came from frontend or not
+    if (!company_id || !message) {
+      // Error:
+      return res.status(400).json({ message: "Incomplete Data" });
+    } else {
+      const company = await CompanyModel.findById({
+        _id: company_id,
+      });
+      if (company) {
+        const officer = await OfficerModel.findById({
+          _id: tokenVerify.data,
         });
-        if (company) {
-          const officer = await OfficerModel.findById({
-            _id: tokenVerify.data,
-          });
-          if (officer) {
-            // Check if the subscriber already exists
+        if (officer) {
+          // Check if the subscriber already exists
 
-            const foundInSubscribedCompanies = officer.subscribed_company.some(
-              (e) => e.company_id === company_id
-            );
+          const foundInSubscribedCompanies = officer.subscribed_company.some(
+            (e) => e.company_id === company_id
+          );
 
-            if (foundInSubscribedCompanies === false) {
-              // remove from the request send by officer
-              officer.subscribe_request_from_company =
-                officer.subscribe_request_from_company.filter(
-                  (obj) => obj.company_id !== company_id.toString()
-                );
+          if (foundInSubscribedCompanies === false) {
+            // remove from the request send by officer
+            officer.subscribe_request_from_company =
+              officer.subscribe_request_from_company.filter(
+                (obj) => obj.company_id !== company_id.toString()
+              );
 
-              // remove from the officer from which the request has come
-              company.subscribe_request_to_officer =
-                company.subscribe_request_to_officer.filter(
-                  (obj) => obj.officer_id !== tokenVerify.data.toString()
-                );
+            // remove from the officer from which the request has come
+            company.subscribe_request_to_officer =
+              company.subscribe_request_to_officer.filter(
+                (obj) => obj.officer_id !== tokenVerify.data.toString()
+              );
 
-              // add to the subscribedOfficer schema of company
-              const companyData = {
-                officer_id: tokenVerify.data,
-                index: officer.index,
-                selectedbycompany: [],
-                college_name: officer.college_name,
-                username: officer.username,
-                message: [],
-                selectedbyOfficer: [],
-              };
+            // add to the subscribedOfficer schema of company
+            const companyData = {
+              officer_id: tokenVerify.data,
+              index: officer.index,
+              selectedbycompany: [],
+              college_name: officer.college_name,
+              username: officer.username,
+              message: [],
+              selectedbyOfficer: [],
+            };
 
-              company.subscribed_officer.push(companyData);
+            company.subscribed_officer.push(companyData);
 
-              // add to the officer that requested to company
-              const officerData = {
-                company_id: company._id,
-                index: company.index,
-                selectedbycompany: [],
-                username: company.username,
-                company_name: company.company_name,
-                message: [],
-                selectedbyOfficer: [],
-              };
+            // add to the officer that requested to company
+            const officerData = {
+              company_id: company._id,
+              index: company.index,
+              selectedbycompany: [],
+              username: company.username,
+              company_name: company.company_name,
+              message: [],
+              selectedbyOfficer: [],
+            };
 
-              officer.subscribed_company.push(officerData);
+            officer.subscribed_company.push(officerData);
 
-              // save
-              const savedCompany = await company.save();
-              const savedOfficer = await officer.save();
+            // save
+            const savedCompany = await company.save();
+            const savedOfficer = await officer.save();
 
-              if (savedOfficer && savedCompany) {
-                // Success :
-                return res
-                  .status(200)
-                  .json({ message: "Successfully subscribed to the company" });
-              } else {
-                // Error:
-                return res
-                  .status(500)
-                  .json({ message: "Failed to subscribe to the company" });
-              }
+            if (savedOfficer && savedCompany) {
+              // Success :
+              return res
+                .status(200)
+                .json({ message: "Successfully subscribed to the company" });
+            } else {
+              // Error:
+              return res
+                .status(500)
+                .json({ message: "Failed to subscribe to the company" });
             }
-          } else {
-            // Error:
-            return res.status(404).json({ message: "Officer not found" });
           }
         } else {
           // Error:
-          return res.status(400).json({ message: "Company not found" });
+          return res.status(404).json({ message: "Officer not found" });
         }
+      } else {
+        // Error:
+        return res.status(400).json({ message: "Company not found" });
       }
-    } else {
-      // Error:
-      return res
-        .status(500)
-        .json({ message: "Problem in verifying the token" });
     }
   } catch (e) {
     // Error:
@@ -1382,40 +1377,27 @@ export const addSubscribedOfficerFromOfficer = async (
 
 export const getAllRequestedCompanies = async (req: Request, res: Response) => {
   try {
-    const bearerHeader = req.headers.authorization;
-    const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(
-      bearer.split(" ")[1],
-      SecretKey
-    ) as jwt.JwtPayload;
-    if (tokenVerify) {
-      const foundOfficer = await OfficerModel.findById({
-        _id: tokenVerify.data,
-      });
+    const { tokenVerify } = req.body;
+    const foundOfficer = await OfficerModel.findById({
+      _id: tokenVerify.data,
+    });
 
-      if (!foundOfficer) {
-        // Error:
-        return res.status(400).json({ message: "Officer does not exist" });
-      } else {
-        const allRequestedCompanies =
-          foundOfficer.subscribe_request_from_company;
-
-        if (allRequestedCompanies.length === 0) {
-          // No Requested Companies
-          return res.status(200).json({ message: "Not any Request" });
-        } else {
-          // Success:
-          return res.status(200).json({
-            message: "get All Requested Companies Successful",
-            data: allRequestedCompanies,
-          });
-        }
-      }
-    } else {
+    if (!foundOfficer) {
       // Error:
-      return res
-        .status(500)
-        .json({ message: "Problem in verifying the token" });
+      return res.status(400).json({ message: "Officer does not exist" });
+    } else {
+      const allRequestedCompanies = foundOfficer.subscribe_request_from_company;
+
+      if (allRequestedCompanies.length === 0) {
+        // No Requested Companies
+        return res.status(200).json({ message: "Not any Request" });
+      } else {
+        // Success:
+        return res.status(200).json({
+          message: "get All Requested Companies Successful",
+          data: allRequestedCompanies,
+        });
+      }
     }
   } catch (e) {
     // Error:
@@ -1470,39 +1452,27 @@ export const getAllSubscribedCompanies = async (
   res: Response
 ) => {
   try {
-    const bearerHeader = req.headers.authorization;
-    const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(
-      bearer.split(" ")[1],
-      SecretKey
-    ) as jwt.JwtPayload;
-    if (tokenVerify) {
-      const foundOfficer = await OfficerModel.findById({
-        _id: tokenVerify.data,
-      });
+    const { tokenVerify } = req.body;
+    const foundOfficer = await OfficerModel.findById({
+      _id: tokenVerify.data,
+    });
 
-      if (!foundOfficer) {
-        // Error:
-        return res.status(400).json({ message: "Officer does not exist" });
-      } else {
-        const subscribedcompanies = foundOfficer.subscribed_company;
-
-        if (subscribedcompanies.length === 0) {
-          // No Requested Companies
-          return res.status(200).json({ message: "Not any Request" });
-        } else {
-          // Success:
-          return res.status(200).json({
-            message: "get All Requested Companies Successful",
-            data: subscribedcompanies,
-          });
-        }
-      }
-    } else {
+    if (!foundOfficer) {
       // Error:
-      return res
-        .status(500)
-        .json({ message: "Problem in verifying the token" });
+      return res.status(400).json({ message: "Officer does not exist" });
+    } else {
+      const subscribedcompanies = foundOfficer.subscribed_company;
+
+      if (subscribedcompanies.length === 0) {
+        // No Requested Companies
+        return res.status(200).json({ message: "Not any Request" });
+      } else {
+        // Success:
+        return res.status(200).json({
+          message: "get All Requested Companies Successful",
+          data: subscribedcompanies,
+        });
+      }
     }
   } catch (e) {
     // Error:
@@ -1512,41 +1482,27 @@ export const getAllSubscribedCompanies = async (
 
 export const getAllCancelledRequests = async (req: Request, res: Response) => {
   try {
-    const bearerHeader = req.headers.authorization;
-    const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(
-      bearer.split(" ")[1],
-      SecretKey
-    ) as jwt.JwtPayload;
-    if (tokenVerify) {
-      const foundOfficer = await OfficerModel.findById({
-        _id: tokenVerify.data,
-      });
+    const { tokenVerify } = req.body;
+    const foundOfficer = await OfficerModel.findById({
+      _id: tokenVerify.data,
+    });
 
-      if (!foundOfficer) {
-        // Error:
-        return res.status(400).json({ message: "Officer does not exist" });
-      } else {
-        const allCancelledCompanies = foundOfficer.cancelled_company;
-
-        if (allCancelledCompanies.length === 0) {
-          // No Requested Companies
-          return res
-            .status(200)
-            .json({ message: "Not any cancelled Requests" });
-        } else {
-          // Success:
-          return res.status(200).json({
-            message: "get All Requested Companies Successful",
-            data: allCancelledCompanies,
-          });
-        }
-      }
-    } else {
+    if (!foundOfficer) {
       // Error:
-      return res
-        .status(500)
-        .json({ message: "Problem in verifying the token" });
+      return res.status(400).json({ message: "Officer does not exist" });
+    } else {
+      const allCancelledCompanies = foundOfficer.cancelled_company;
+
+      if (allCancelledCompanies.length === 0) {
+        // No Requested Companies
+        return res.status(200).json({ message: "Not any cancelled Requests" });
+      } else {
+        // Success:
+        return res.status(200).json({
+          message: "get All Requested Companies Successful",
+          data: allCancelledCompanies,
+        });
+      }
     }
   } catch (e) {
     // Error:
@@ -1556,82 +1512,70 @@ export const getAllCancelledRequests = async (req: Request, res: Response) => {
 
 export const getAllCompanyByFilter = async (req: Request, res: Response) => {
   try {
-    const bearerHeader = req.headers.authorization;
-    const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(
-      bearer.split(" ")[1],
-      SecretKey
-    ) as jwt.JwtPayload;
-    if (tokenVerify) {
-      const companies = await CompanyModel.find({})
-        .select(
-          "-password -cancelled_officer -subscribe_request_from_officer -subscribe_request_to_officer -subscribed_officer "
-        )
-        .exec();
+    const { tokenVerify } = req.body;
+    const companies = await CompanyModel.find({})
+      .select(
+        "-password -cancelled_officer -subscribe_request_from_officer -subscribe_request_to_officer -subscribed_officer "
+      )
+      .exec();
 
-      // Assuming you have retrieved the company data
-      const officerData = await OfficerModel.findById({
-        _id: tokenVerify.data,
-      })
-        .populate("subscribe_request_from_company")
-        .populate("subscribe_request_to_company")
-        .populate("subscribed_company")
-        .exec();
+    // Assuming you have retrieved the company data
+    const officerData = await OfficerModel.findById({
+      _id: tokenVerify.data,
+    })
+      .populate("subscribe_request_from_company")
+      .populate("subscribe_request_to_company")
+      .populate("subscribed_company")
+      .exec();
 
-      if (!officerData) {
-        return res.status(404).json({ message: "Company data not found." });
-      }
-
-      // Remove officers present in company data
-      const filteredCompanies = companies.filter((company) => {
-        const companyId = company._id.toString();
-        const isSubscribeRequestFromCompanies =
-          officerData.subscribe_request_from_company.some(
-            (req) => req.company_id.toString() === companyId
-          );
-        const isSubscribeRequestToCompanies =
-          officerData.subscribe_request_to_company.some(
-            (req) => req.company_id.toString() === companyId
-          );
-        const isSubscribedCompanies = officerData.subscribed_company.some(
-          (sub) => sub.company_id.toString() === companyId
-        );
-
-        return !(
-          isSubscribeRequestFromCompanies ||
-          isSubscribeRequestToCompanies ||
-          isSubscribedCompanies
-        );
-      });
-
-      // Shuffle the officers array randomly
-
-      // Define the chunk size and total number of chunks
-      const chunkSize = 7; // Number of items in each chunk
-      const totalChunks = Math.ceil(filteredCompanies.length / chunkSize);
-
-      // Get the requested chunk number from the query parameter
-      const requestedChunk = parseInt(req.query.chunk as string) || 1;
-
-      // Calculate the start and end indices of the chunk
-      const startIndex = (requestedChunk - 1) * chunkSize;
-      const endIndex = requestedChunk * chunkSize;
-
-      // Slice the shuffled data array to get the desired chunk
-      const chunkData = filteredCompanies.slice(startIndex, endIndex);
-
-      //Success: Send the chunk data as a response
-      return res.status(200).json({
-        message: "Get All Filtered officers is successful",
-        totalChunks: totalChunks,
-        chunkData: chunkData,
-      });
-    } else {
-      // Error:
-      return res
-        .status(500)
-        .json({ message: "Problem in verifying the token" });
+    if (!officerData) {
+      return res.status(404).json({ message: "Company data not found." });
     }
+
+    // Remove officers present in company data
+    const filteredCompanies = companies.filter((company) => {
+      const companyId = company._id.toString();
+      const isSubscribeRequestFromCompanies =
+        officerData.subscribe_request_from_company.some(
+          (req) => req.company_id.toString() === companyId
+        );
+      const isSubscribeRequestToCompanies =
+        officerData.subscribe_request_to_company.some(
+          (req) => req.company_id.toString() === companyId
+        );
+      const isSubscribedCompanies = officerData.subscribed_company.some(
+        (sub) => sub.company_id.toString() === companyId
+      );
+
+      return !(
+        isSubscribeRequestFromCompanies ||
+        isSubscribeRequestToCompanies ||
+        isSubscribedCompanies
+      );
+    });
+
+    // Shuffle the officers array randomly
+
+    // Define the chunk size and total number of chunks
+    const chunkSize = 7; // Number of items in each chunk
+    const totalChunks = Math.ceil(filteredCompanies.length / chunkSize);
+
+    // Get the requested chunk number from the query parameter
+    const requestedChunk = parseInt(req.query.chunk as string) || 1;
+
+    // Calculate the start and end indices of the chunk
+    const startIndex = (requestedChunk - 1) * chunkSize;
+    const endIndex = requestedChunk * chunkSize;
+
+    // Slice the shuffled data array to get the desired chunk
+    const chunkData = filteredCompanies.slice(startIndex, endIndex);
+
+    //Success: Send the chunk data as a response
+    return res.status(200).json({
+      message: "Get All Filtered officers is successful",
+      totalChunks: totalChunks,
+      chunkData: chunkData,
+    });
   } catch (error) {
     return res.status(500).json("Error retrieving officers: " + error);
   }
@@ -1642,103 +1586,96 @@ export const getAllCompaniesByFilterInChunksWithSearch = async (
   res: Response
 ) => {
   try {
-    const bearerHeader = req.headers.authorization;
-    const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(
-      bearer.split(" ")[1],
-      SecretKey
-    ) as jwt.JwtPayload;
-    if (tokenVerify) {
-      const { search }: { search: string } = req.body;
+    const { tokenVerify } = req.body;
+    const { search }: { search: string } = req.body;
 
-      if (!search || search.length < 3) {
-        // Error: Incomplete Data
-        return res.status(400).json({ message: "Give atleast 3 letters" });
-      }
+    if (!search || search.length < 3) {
+      // Error: Incomplete Data
+      return res.status(400).json({ message: "Give atleast 3 letters" });
+    }
 
-      const Companies = await CompanyModel.find({})
-        .select(
-          "-password -cancelled_officer -subscribe_request_from_officer -subscribe_request_to_officer -subscribed_officer"
-        )
-        .exec();
+    const Companies = await CompanyModel.find({})
+      .select(
+        "-password -cancelled_officer -subscribe_request_from_officer -subscribe_request_to_officer -subscribed_officer"
+      )
+      .exec();
 
-      // Assuming you have retrieved the company data
-      const officerData = await OfficerModel.findById({
-        _id: tokenVerify.data,
+    // Assuming you have retrieved the company data
+    const officerData = await OfficerModel.findById({
+      _id: tokenVerify.data,
+    });
+
+    if (!officerData) {
+      return res.status(404).json({ message: "Company data not found." });
+    } else {
+      // Filter Companies based on search criteria
+      const filteredCompanies = Companies.filter((Company) => {
+        const { username, email_id, mobile_no, company_name } = Company;
+        const lowerSearch = search.toLowerCase().replace(" ", "");
+
+        // Check if any of the Companies's fields match the search query
+        return (
+          username.toLowerCase().replace(" ", "").includes(lowerSearch) ||
+          email_id.toLowerCase().replace(" ", "").includes(lowerSearch) ||
+          mobile_no.toLowerCase().replace(" ", "").includes(lowerSearch) ||
+          company_name.toLowerCase().replace(" ", "").includes(lowerSearch)
+        );
       });
 
-      if (!officerData) {
-        return res.status(404).json({ message: "Company data not found." });
-      } else {
-        // Filter Companies based on search criteria
-        const filteredCompanies = Companies.filter((Company) => {
-          const { username, email_id, mobile_no, company_name } = Company;
-          const lowerSearch = search.toLowerCase().replace(" ", "");
+      // Data Interface
+      interface Data {
+        subscribe_request_from_company: Company[];
+        subscribe_request_to_company: Company[];
+        subscribed_company: Company[];
+        remaining_company: Company[];
+      }
 
-          // Check if any of the Companies's fields match the search query
-          return (
-            username.toLowerCase().replace(" ", "").includes(lowerSearch) ||
-            email_id.toLowerCase().replace(" ", "").includes(lowerSearch) ||
-            mobile_no.toLowerCase().replace(" ", "").includes(lowerSearch) ||
-            company_name.toLowerCase().replace(" ", "").includes(lowerSearch)
-          );
-        });
+      // Initialize data object
+      const data: Data = {
+        subscribe_request_from_company: [],
+        subscribe_request_to_company: [],
+        subscribed_company: [],
+        remaining_company: [],
+      };
 
-        // Data Interface
-        interface Data {
-          subscribe_request_from_company: Company[];
-          subscribe_request_to_company: Company[];
-          subscribed_company: Company[];
-          remaining_company: Company[];
+      // Filter Companies and populate data object
+      filteredCompanies.forEach((company) => {
+        const companyId = company._id.toString();
+
+        if (
+          officerData.subscribe_request_from_company.some(
+            (req) => req.company_id.toString() === companyId
+          )
+        ) {
+          data.subscribe_request_from_company.push(company);
+          return; // Proceed to next iteration
         }
 
-        // Initialize data object
-        const data: Data = {
-          subscribe_request_from_company: [],
-          subscribe_request_to_company: [],
-          subscribed_company: [],
-          remaining_company: [],
-        };
+        if (
+          officerData.subscribe_request_to_company.some(
+            (req) => req.company_id.toString() === companyId
+          )
+        ) {
+          data.subscribe_request_to_company.push(company);
+          return; // Proceed to next iteration
+        }
 
-        // Filter Companies and populate data object
-        filteredCompanies.forEach((company) => {
-          const companyId = company._id.toString();
+        if (
+          officerData.subscribed_company.some(
+            (sub) => sub.company_id.toString() === companyId
+          )
+        ) {
+          data.subscribed_company.push(company);
+          return; // Proceed to next iteration
+        }
 
-          if (
-            officerData.subscribe_request_from_company.some(
-              (req) => req.company_id.toString() === companyId
-            )
-          ) {
-            data.subscribe_request_from_company.push(company);
-            return; // Proceed to next iteration
-          }
+        data.remaining_company.push(company);
+      });
 
-          if (
-            officerData.subscribe_request_to_company.some(
-              (req) => req.company_id.toString() === companyId
-            )
-          ) {
-            data.subscribe_request_to_company.push(company);
-            return; // Proceed to next iteration
-          }
-
-          if (
-            officerData.subscribed_company.some(
-              (sub) => sub.company_id.toString() === companyId
-            )
-          ) {
-            data.subscribed_company.push(company);
-            return; // Proceed to next iteration
-          }
-
-          data.remaining_company.push(company);
-        });
-
-        return res.status(200).json({
-          message: "Get All Filtered Companies is successful",
-          data: data,
-        });
-      }
+      return res.status(200).json({
+        message: "Get All Filtered Companies is successful",
+        data: data,
+      });
     }
   } catch (error) {
     // Error:
@@ -1877,151 +1814,139 @@ export const confirmSelectedStudentsWithDates = async (
   res: Response
 ) => {
   try {
-    const bearerHeader = req.headers.authorization;
-    const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(
-      bearer.split(" ")[1],
-      SecretKey
-    ) as jwt.JwtPayload;
-    if (tokenVerify) {
-      // get the data from frontend
-      let { company_id, company_name, selectedstudents, start_date, end_date } =
-        req.body;
+    // get the data from frontend
+    let {
+      company_id,
+      company_name,
+      selectedstudents,
+      start_date,
+      end_date,
+      tokenVerify,
+    } = req.body;
 
-      start_date = convertToDateIfValidFormat(start_date);
-      end_date = convertToDateIfValidFormat(end_date);
+    start_date = convertToDateIfValidFormat(start_date);
+    end_date = convertToDateIfValidFormat(end_date);
+    // find the Officer
+    const Officer = await OfficerModel.findById({ _id: tokenVerify.data });
+    const Company = await CompanyModel.findById({ _id: company_id });
+    if (!Officer || !Company) {
+      return res.status(404).json({ message: "Officer or Company not found" });
+    } else {
+      let studentsAlreadySelected: any = [];
+      let studentsNotFound: any = [];
+      // take out the data from selectedstudents
+      // for(int i=0;i<selectedstudents.length;i++){
+      for (let i = 0; i < selectedstudents.length; i++) {
+        const {
+          branch,
+          year_batch,
+        }: {
+          branch: string;
+          year_batch: number;
+        } = selectedstudents[i];
 
-      if (!company_id || !selectedstudents) {
-        // Error: Data not found
-        return res.status(400).json({ message: "Incomplete Data" });
-      } else {
-        // find the Officer
-        const Officer = await OfficerModel.findById({ _id: tokenVerify.data });
-        const Company = await CompanyModel.findById({ _id: company_id });
-        if (!Officer || !Company) {
-          return res
-            .status(404)
-            .json({ message: "Officer or Company not found" });
+        let foundElement: Department | null = null;
+        // find the department and year_batch in officer
+        for (let i = 0; i < Officer.college_details.length; i++) {
+          if (
+            Officer.college_details[i].department_name === branch &&
+            Officer.college_details[i].year_batch === year_batch
+          ) {
+            foundElement = Officer.college_details[i];
+            break;
+          }
+        }
+
+        if (foundElement === null) {
+          studentsNotFound.push(selectedstudents[i]);
+          break;
         } else {
-          let studentsAlreadySelected: any = [];
-          let studentsNotFound: any = [];
-          // take out the data from selectedstudents
-          // for(int i=0;i<selectedstudents.length;i++){
-          for (let i = 0; i < selectedstudents.length; i++) {
-            const {
-              branch,
-              year_batch,
-            }: {
-              branch: string;
-              year_batch: number;
-            } = selectedstudents[i];
+          // find the student in the foundElement
 
-            let foundElement: Department | null = null;
-            // find the department and year_batch in officer
-            for (let i = 0; i < Officer.college_details.length; i++) {
-              if (
-                Officer.college_details[i].department_name === branch &&
-                Officer.college_details[i].year_batch === year_batch
-              ) {
-                foundElement = Officer.college_details[i];
-                break;
+          // check if the student is already selected for any internship or not boolean
+
+          const studentDetails = foundElement?.student_details;
+          if (studentDetails) {
+            // binary search
+            let foundStudent = false;
+            let low = 0;
+            let high = studentDetails.length - 1;
+
+            while (low <= high) {
+              let mid = Math.floor((low + high) / 2);
+              let midElement = studentDetails[mid];
+
+              if (selectedstudents[i].index === midElement.index) {
+                // check if the student is already selected for any internship or not
+                if (midElement.Internship_status === false) {
+                  // change the status of the student to unavailable
+                  foundStudent = true;
+                  midElement.Internship_status = true;
+                  midElement.current_internship = company_name;
+                  studentDetails[mid].internships_till_now.push(company_name);
+                  studentDetails[mid].internship_start_date = start_date;
+                  studentDetails[mid].internship_end_date = end_date;
+                  break;
+                } else {
+                  // Error: Student is already selected for any internship
+                  studentsAlreadySelected.push(midElement);
+                  break;
+                }
+              } else if (selectedstudents[i].index < midElement.index) {
+                // search in the left half
+                high = mid - 1;
+              } else {
+                // search in the right half
+                low = mid + 1;
               }
             }
 
-            if (foundElement === null) {
+            if (!foundStudent) {
+              // Error: Student not found
               studentsNotFound.push(selectedstudents[i]);
-              break;
-            } else {
-              // find the student in the foundElement
-
-              // check if the student is already selected for any internship or not boolean
-
-              const studentDetails = foundElement?.student_details;
-              if (studentDetails) {
-                // binary search
-                let foundStudent = false;
-                let low = 0;
-                let high = studentDetails.length - 1;
-
-                while (low <= high) {
-                  let mid = Math.floor((low + high) / 2);
-                  let midElement = studentDetails[mid];
-
-                  if (selectedstudents[i].index === midElement.index) {
-                    // check if the student is already selected for any internship or not
-                    if (midElement.Internship_status === false) {
-                      // change the status of the student to unavailable
-                      foundStudent = true;
-                      midElement.Internship_status = true;
-                      midElement.current_internship = company_name;
-                      studentDetails[mid].internships_till_now.push(
-                        company_name
-                      );
-                      studentDetails[mid].internship_start_date = start_date;
-                      studentDetails[mid].internship_end_date = end_date;
-                      break;
-                    } else {
-                      // Error: Student is already selected for any internship
-                      studentsAlreadySelected.push(midElement);
-                      break;
-                    }
-                  } else if (selectedstudents[i].index < midElement.index) {
-                    // search in the left half
-                    high = mid - 1;
-                  } else {
-                    // search in the right half
-                    low = mid + 1;
-                  }
-                }
-
-                if (!foundStudent) {
-                  // Error: Student not found
-                  studentsNotFound.push(selectedstudents[i]);
-                }
-              }
             }
           }
+        }
+      }
 
-          if (studentsAlreadySelected.length > 0) {
-            return res.status(400).json({
-              message: "Students are already selected for any internship",
-              data: studentsAlreadySelected,
+      if (studentsAlreadySelected.length > 0) {
+        return res.status(400).json({
+          message: "Students are already selected for any internship",
+          data: studentsAlreadySelected,
+        });
+      } else if (studentsNotFound.length > 0) {
+        return res.status(400).json({
+          message: "Students not found",
+          data: studentsNotFound,
+        });
+      } else {
+        // save the data
+        const savedOfficerDetails = await Officer.save();
+        if (!savedOfficerDetails) {
+          return res
+            .status(400)
+            .json({ message: "Error in saving the officer details" });
+        } else {
+          // send the email to the officer and company
+          sendEmailForConfirmedStudents(
+            Officer,
+            Company,
+            selectedstudents[0].branch,
+            selectedstudents[0].year_batch,
+            start_date,
+            end_date,
+            selectedstudents
+          )
+            .then((response) => {
+              // Success
+              return res.status(200).json({
+                message:
+                  "Successfully changed the status of the students to unavailable",
+              });
+            })
+            .catch((error) => {
+              console.log(error);
             });
-          } else if (studentsNotFound.length > 0) {
-            return res.status(400).json({
-              message: "Students not found",
-              data: studentsNotFound,
-            });
-          } else {
-            // save the data
-            const savedOfficerDetails = await Officer.save();
-            if (!savedOfficerDetails) {
-              return res
-                .status(400)
-                .json({ message: "Error in saving the officer details" });
-            } else {
-              // send the email to the officer and company
-              sendEmailForConfirmedStudents(
-                Officer,
-                Company,
-                selectedstudents[0].branch,
-                selectedstudents[0].year_batch,
-                start_date,
-                end_date,
-                selectedstudents
-              )
-                .then((response) => {
-                  // Success
-                  return res.status(200).json({
-                    message:
-                      "Successfully changed the status of the students to unavailable",
-                  });
-                })
-                .catch((error) => {
-                  console.log(error);
-                });
-            }
-          }
         }
       }
     }
@@ -2037,120 +1962,98 @@ export const confirmSelectedStudentsWithNoDateProvided = async (
   res: Response
 ) => {
   try {
-    const bearerHeader = req.headers.authorization;
-    const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(
-      bearer.split(" ")[1],
-      SecretKey
-    ) as jwt.JwtPayload;
-    if (tokenVerify) {
-      // get the data from frontend
-      const { company_id, company_name, selectStudents } = req.body;
+    // get the data from frontend
+    const { company_id, company_name, selectStudents, tokenVerify } = req.body;
 
-      if (!company_id || !selectStudents) {
-        // Error: Data not found
-        return res.status(400).json({ message: "Incomplete Data" });
+    // find the Officer
+    const Officer = await OfficerModel.findById({ _id: tokenVerify.data });
+    const Company = await CompanyModel.findById({ _id: company_id });
+    if (!Officer || !Company) {
+      return res.status(404).json({ message: "Officer or Company not found" });
+    } else {
+      // take out the data from selectedstudents
+      const { department_name, year_batch } = selectStudents[0];
+      const yearBatch = parseInt(year_batch);
+      let foundElement: Department | null = null;
+      // find the department and year_batch in officer
+      for (let i = 0; i < Officer.college_details.length; i++) {
+        if (
+          Officer.college_details[i].department_name === department_name &&
+          Officer.college_details[i].year_batch === yearBatch
+        ) {
+          foundElement = Officer.college_details[i];
+          break;
+        }
+      }
+
+      if (foundElement === null) {
+        // Error: Department not found
+        return res.status(404).json({
+          message: `Department ${department_name} with batch year ${year_batch} not found`,
+        });
       } else {
-        // find the Officer
-        const Officer = await OfficerModel.findById({ _id: tokenVerify.data });
-        const Company = await CompanyModel.findById({ _id: company_id });
-        if (!Officer || !Company) {
-          return res
-            .status(404)
-            .json({ message: "Officer or Company not found" });
-        } else {
-          // take out the data from selectedstudents
-          const { department_name, year_batch } = selectStudents[0];
-          const yearBatch = parseInt(year_batch);
-          let foundElement: Department | null = null;
-          // find the department and year_batch in officer
-          for (let i = 0; i < Officer.college_details.length; i++) {
-            if (
-              Officer.college_details[i].department_name === department_name &&
-              Officer.college_details[i].year_batch === yearBatch
-            ) {
-              foundElement = Officer.college_details[i];
-              break;
-            }
-          }
+        // find the student in the foundElement
 
-          if (foundElement === null) {
-            // Error: Department not found
-            return res.status(404).json({
-              message: `Department ${department_name} with batch year ${year_batch} not found`,
-            });
-          } else {
-            // find the student in the foundElement
+        selectStudents[0].student_details.map((e: Students) => {
+          // check if the student is already selected for any internship or not boolean
 
-            selectStudents[0].student_details.map((e: Students) => {
-              // check if the student is already selected for any internship or not boolean
+          const studentDetails = foundElement?.student_details;
+          if (studentDetails) {
+            // binary search
+            let foundStudent = false;
+            let low = 0;
+            let high = studentDetails.length - 1;
 
-              const studentDetails = foundElement?.student_details;
-              if (studentDetails) {
-                // binary search
-                let foundStudent = false;
-                let low = 0;
-                let high = studentDetails.length - 1;
+            while (low <= high) {
+              let mid = Math.floor((low + high) / 2);
+              let midElement = studentDetails[mid];
 
-                while (low <= high) {
-                  let mid = Math.floor((low + high) / 2);
-                  let midElement = studentDetails[mid];
-
-                  if (e.index === midElement.index) {
-                    // check if the student is already selected for any internship or not
-                    if (midElement.Internship_status === false) {
-                      // change the status of the student to unavailable
-                      foundStudent = true;
-                      midElement.Internship_status = true;
-                      midElement.current_internship = company_name;
-                      studentDetails[mid].internships_till_now.push(
-                        company_name
-                      );
-                      break;
-                    } else {
-                      // Error: Student is already selected for any internship
-                      return res.status(400).json({
-                        message: `Student with roll no ${midElement.roll_no} is already selected for ${midElement.current_internship} internship`,
-                      });
-                    }
-                  } else if (e.index < midElement.index) {
-                    // search in the left half
-                    high = mid - 1;
-                  } else {
-                    // search in the right half
-                    low = mid + 1;
-                  }
-                }
-
-                if (!foundStudent) {
-                  // Error: Student not found
+              if (e.index === midElement.index) {
+                // check if the student is already selected for any internship or not
+                if (midElement.Internship_status === false) {
+                  // change the status of the student to unavailable
+                  foundStudent = true;
+                  midElement.Internship_status = true;
+                  midElement.current_internship = company_name;
+                  studentDetails[mid].internships_till_now.push(company_name);
+                  break;
+                } else {
+                  // Error: Student is already selected for any internship
                   return res.status(400).json({
-                    message: `Student with roll no ${e.roll_no} is not found in the department ${department_name} with batch year ${year_batch}`,
+                    message: `Student with roll no ${midElement.roll_no} is already selected for ${midElement.current_internship} internship`,
                   });
                 }
+              } else if (e.index < midElement.index) {
+                // search in the left half
+                high = mid - 1;
+              } else {
+                // search in the right half
+                low = mid + 1;
               }
-            });
+            }
 
-            // save the data
-            const savedOfficerDetails = await Officer.save();
-            if (!savedOfficerDetails) {
-              return res
-                .status(400)
-                .json({ message: "Error in saving the officer details" });
-            } else {
-              return res.status(200).json({
-                message:
-                  "Successfully changed the status of the students to unavailable",
+            if (!foundStudent) {
+              // Error: Student not found
+              return res.status(400).json({
+                message: `Student with roll no ${e.roll_no} is not found in the department ${department_name} with batch year ${year_batch}`,
               });
             }
           }
+        });
+
+        // save the data
+        const savedOfficerDetails = await Officer.save();
+        if (!savedOfficerDetails) {
+          return res
+            .status(400)
+            .json({ message: "Error in saving the officer details" });
+        } else {
+          return res.status(200).json({
+            message:
+              "Successfully changed the status of the students to unavailable",
+          });
         }
       }
-    } else {
-      // Error:
-      return res
-        .status(500)
-        .json({ message: "Problem in verifying the token" });
     }
   } catch (error) {
     // Error:
@@ -2161,285 +2064,285 @@ export const confirmSelectedStudentsWithNoDateProvided = async (
 };
 
 // Before marking the students are unavailable making them unavailable
-export const makeSelectedStudentsUnavailableConfirm = async (
-  req: Request,
-  res: Response
-) => {
-  try {
-    const bearerHeader = req.headers.authorization;
-    const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(
-      bearer.split(" ")[1],
-      SecretKey
-    ) as jwt.JwtPayload;
-    if (tokenVerify) {
-      // get the data of Officer
-      const Officer = await OfficerModel.findById({ _id: tokenVerify.data });
-      const { company_id, company_name, selectedstudents } = req.body;
-      if (!company_id || !company_name || !selectedstudents) {
-        // Error: Data not found
-        return res.status(400).json({ message: "Incomplete Data" });
-      } else {
-        // find the Company
-        const Company = await CompanyModel.findById({ _id: company_id });
-        if (!Company || !Officer) {
-          // Error: Company or Officer not found
-          return res
-            .status(404)
-            .json({ message: "Company or Officer not found" });
-        } else {
-          // take out the data from selectedstudents
-          const { department_name, year_batch } = selectedstudents[0];
-          //
-          const subscribed_company = Officer.subscribed_company;
-          let foundSubscribedCompany: subscribedCompany | null = null;
-          for (let i = 0; i < subscribed_company.length; i++) {
-            // find the company in the officer
-            if (subscribed_company[i].company_id === company_id) {
-              foundSubscribedCompany = subscribed_company[i];
-              break;
-            }
-          }
+// export const makeSelectedStudentsUnavailableConfirm = async (
+//   req: Request,
+//   res: Response
+// ) => {
+//   try {
+//     const bearerHeader = req.headers.authorization;
+//     const bearer: string = bearerHeader as string;
+//     const tokenVerify = jwt.verify(
+//       bearer.split(" ")[1],
+//       SecretKey
+//     ) as jwt.JwtPayload;
+//     if (tokenVerify) {
+//       // get the data of Officer
+//       const Officer = await OfficerModel.findById({ _id: tokenVerify.data });
+//       const { company_id, company_name, selectedstudents } = req.body;
+//       if (!company_id || !company_name || !selectedstudents) {
+//         // Error: Data not found
+//         return res.status(400).json({ message: "Incomplete Data" });
+//       } else {
+//         // find the Company
+//         const Company = await CompanyModel.findById({ _id: company_id });
+//         if (!Company || !Officer) {
+//           // Error: Company or Officer not found
+//           return res
+//             .status(404)
+//             .json({ message: "Company or Officer not found" });
+//         } else {
+//           // take out the data from selectedstudents
+//           const { department_name, year_batch } = selectedstudents[0];
+//           //
+//           const subscribed_company = Officer.subscribed_company;
+//           let foundSubscribedCompany: subscribedCompany | null = null;
+//           for (let i = 0; i < subscribed_company.length; i++) {
+//             // find the company in the officer
+//             if (subscribed_company[i].company_id === company_id) {
+//               foundSubscribedCompany = subscribed_company[i];
+//               break;
+//             }
+//           }
 
-          if (foundSubscribedCompany === null) {
-            // Error: Company not found in the officer
-            return res
-              .status(404)
-              .json({ message: "Company not found in the officer" });
-          }
+//           if (foundSubscribedCompany === null) {
+//             // Error: Company not found in the officer
+//             return res
+//               .status(404)
+//               .json({ message: "Company not found in the officer" });
+//           }
 
-          const officerSelectedStudents: selectedStudentsInterface[] =
-            foundSubscribedCompany.selectedbycompany;
+//           const officerSelectedStudents: selectedStudentsInterface[] =
+//             foundSubscribedCompany.selectedbycompany;
 
-          let foundDepartment: Boolean = false;
-          for (let i = 0; i < officerSelectedStudents.length; i++) {
-            if (
-              officerSelectedStudents[i].department_name === department_name &&
-              officerSelectedStudents[i].year_batch === year_batch
-            ) {
-              // mark the data as confirmed
-              foundDepartment = true;
-              officerSelectedStudents[i].confirmed = true;
-              break;
-            }
-          }
+//           let foundDepartment: Boolean = false;
+//           for (let i = 0; i < officerSelectedStudents.length; i++) {
+//             if (
+//               officerSelectedStudents[i].department_name === department_name &&
+//               officerSelectedStudents[i].year_batch === year_batch
+//             ) {
+//               // mark the data as confirmed
+//               foundDepartment = true;
+//               officerSelectedStudents[i].confirmed = true;
+//               break;
+//             }
+//           }
 
-          if (!foundDepartment) {
-            // Error: Department not found in the officer
-            return res
-              .status(404)
-              .json({ message: "Department not found in the officer" });
-          }
+//           if (!foundDepartment) {
+//             // Error: Department not found in the officer
+//             return res
+//               .status(404)
+//               .json({ message: "Department not found in the officer" });
+//           }
 
-          // find the officer in the company
-          const subscribed_officer = Company.subscribed_officer;
-          let foundSubscribedOfficer: subscribedOfficer | null = null;
-          for (let i = 0; i < subscribed_officer.length; i++) {
-            if (subscribed_officer[i].officer_id === tokenVerify.data) {
-              // find the officer in the company
-              foundSubscribedOfficer = subscribed_officer[i];
-              break;
-            }
-          }
+//           // find the officer in the company
+//           const subscribed_officer = Company.subscribed_officer;
+//           let foundSubscribedOfficer: subscribedOfficer | null = null;
+//           for (let i = 0; i < subscribed_officer.length; i++) {
+//             if (subscribed_officer[i].officer_id === tokenVerify.data) {
+//               // find the officer in the company
+//               foundSubscribedOfficer = subscribed_officer[i];
+//               break;
+//             }
+//           }
 
-          if (foundSubscribedOfficer === null) {
-            // Error: Officer not found in the company
-            return res
-              .status(404)
-              .json({ message: "Officer not found in the company" });
-          }
+//           if (foundSubscribedOfficer === null) {
+//             // Error: Officer not found in the company
+//             return res
+//               .status(404)
+//               .json({ message: "Officer not found in the company" });
+//           }
 
-          const companySelectedStudents: selectedStudentsInterface[] =
-            foundSubscribedOfficer.selectedbycompany;
+//           const companySelectedStudents: selectedStudentsInterface[] =
+//             foundSubscribedOfficer.selectedbycompany;
 
-          let foundDepartmentInCompany: Boolean = false;
-          for (let i = 0; i < companySelectedStudents.length; i++) {
-            if (
-              companySelectedStudents[i].department_name === department_name &&
-              companySelectedStudents[i].year_batch === year_batch
-            ) {
-              // mark the data as confirmed
-              foundDepartmentInCompany = true;
-              companySelectedStudents[i].confirmed = true;
-              break;
-            }
-          }
+//           let foundDepartmentInCompany: Boolean = false;
+//           for (let i = 0; i < companySelectedStudents.length; i++) {
+//             if (
+//               companySelectedStudents[i].department_name === department_name &&
+//               companySelectedStudents[i].year_batch === year_batch
+//             ) {
+//               // mark the data as confirmed
+//               foundDepartmentInCompany = true;
+//               companySelectedStudents[i].confirmed = true;
+//               break;
+//             }
+//           }
 
-          if (!foundDepartmentInCompany) {
-            // Error: Department not found in the company
-            return res
-              .status(404)
-              .json({ message: "Department not found in the company" });
-          }
+//           if (!foundDepartmentInCompany) {
+//             // Error: Department not found in the company
+//             return res
+//               .status(404)
+//               .json({ message: "Department not found in the company" });
+//           }
 
-          // save the data
-          const savedOfficerDetails = await Officer.save();
-          const savedCompanyDetails = await Company.save();
+//           // save the data
+//           const savedOfficerDetails = await Officer.save();
+//           const savedCompanyDetails = await Company.save();
 
-          if (!savedOfficerDetails || !savedCompanyDetails) {
-            // Error: Error in saving the officer details
-            return res
-              .status(400)
-              .json({ message: "Error in saving the officer details" });
-          } else {
-            // Success: Successfully confirmed the selected students
-            return res.status(200).json({
-              message: "Successfully confirmed the selected students",
-            });
-          }
-        }
-      }
-    } else {
-      // error:
-      return res
-        .status(500)
-        .json({ message: "Problem in verifying the token" });
-    }
-  } catch (e) {
-    // error:
-    return res.status(500).json({ message: "Server Error" });
-  }
-};
+//           if (!savedOfficerDetails || !savedCompanyDetails) {
+//             // Error: Error in saving the officer details
+//             return res
+//               .status(400)
+//               .json({ message: "Error in saving the officer details" });
+//           } else {
+//             // Success: Successfully confirmed the selected students
+//             return res.status(200).json({
+//               message: "Successfully confirmed the selected students",
+//             });
+//           }
+//         }
+//       }
+//     } else {
+//       // error:
+//       return res
+//         .status(500)
+//         .json({ message: "Problem in verifying the token" });
+//     }
+//   } catch (e) {
+//     // error:
+//     return res.status(500).json({ message: "Server Error" });
+//   }
+// };
 
-// marking the students are unavailable failed making them available
-export const makeSelectedStudentsavailableFailed = async (
-  req: Request,
-  res: Response
-) => {
-  try {
-    const bearerHeader = req.headers.authorization;
-    const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(
-      bearer.split(" ")[1],
-      SecretKey
-    ) as jwt.JwtPayload;
-    if (tokenVerify) {
-      // get the data of Officer
-      const Officer = await OfficerModel.findById({ _id: tokenVerify.data });
-      const { company_id, company_name, selectedstudents } = req.body;
-      if (!company_id || !company_name || !selectedstudents) {
-        // Error: Data not found
-        return res.status(400).json({ message: "Incomplete Data" });
-      } else {
-        // find the Company
-        const Company = await CompanyModel.findById({ _id: company_id });
-        if (!Company || !Officer) {
-          // Error: Company or Officer not found
-          return res
-            .status(404)
-            .json({ message: "Company or Officer not found" });
-        } else {
-          // take out the data from selectedstudents
-          const { department_name, year_batch } = selectedstudents[0];
+// // marking the students are unavailable failed making them available
+// export const makeSelectedStudentsavailableFailed = async (
+//   req: Request,
+//   res: Response
+// ) => {
+//   try {
+//     const bearerHeader = req.headers.authorization;
+//     const bearer: string = bearerHeader as string;
+//     const tokenVerify = jwt.verify(
+//       bearer.split(" ")[1],
+//       SecretKey
+//     ) as jwt.JwtPayload;
+//     if (tokenVerify) {
+//       // get the data of Officer
+//       const Officer = await OfficerModel.findById({ _id: tokenVerify.data });
+//       const { company_id, company_name, selectedstudents } = req.body;
+//       if (!company_id || !company_name || !selectedstudents) {
+//         // Error: Data not found
+//         return res.status(400).json({ message: "Incomplete Data" });
+//       } else {
+//         // find the Company
+//         const Company = await CompanyModel.findById({ _id: company_id });
+//         if (!Company || !Officer) {
+//           // Error: Company or Officer not found
+//           return res
+//             .status(404)
+//             .json({ message: "Company or Officer not found" });
+//         } else {
+//           // take out the data from selectedstudents
+//           const { department_name, year_batch } = selectedstudents[0];
 
-          const subscribed_company = Officer.subscribed_company;
-          let foundSubscribedCompany: subscribedCompany | null = null;
-          for (let i = 0; i < subscribed_company.length; i++) {
-            if (subscribed_company[i].company_id === company_id) {
-              // find the company in the officer
-              foundSubscribedCompany = subscribed_company[i];
-              break;
-            }
-          }
+//           const subscribed_company = Officer.subscribed_company;
+//           let foundSubscribedCompany: subscribedCompany | null = null;
+//           for (let i = 0; i < subscribed_company.length; i++) {
+//             if (subscribed_company[i].company_id === company_id) {
+//               // find the company in the officer
+//               foundSubscribedCompany = subscribed_company[i];
+//               break;
+//             }
+//           }
 
-          if (foundSubscribedCompany === null) {
-            // Error: Company not found in the officer
-            return res
-              .status(404)
-              .json({ message: "Company not found in the officer" });
-          }
+//           if (foundSubscribedCompany === null) {
+//             // Error: Company not found in the officer
+//             return res
+//               .status(404)
+//               .json({ message: "Company not found in the officer" });
+//           }
 
-          const officerSelectedStudents: selectedStudentsInterface[] =
-            foundSubscribedCompany.selectedbycompany;
+//           const officerSelectedStudents: selectedStudentsInterface[] =
+//             foundSubscribedCompany.selectedbycompany;
 
-          let foundDepartment: Boolean = false;
-          for (let i = 0; i < officerSelectedStudents.length; i++) {
-            if (
-              officerSelectedStudents[i].department_name === department_name &&
-              officerSelectedStudents[i].year_batch === year_batch
-            ) {
-              // find the department in the officer
-              foundDepartment = true;
-              officerSelectedStudents[i].confirmed = false;
-              break;
-            }
-          }
+//           let foundDepartment: Boolean = false;
+//           for (let i = 0; i < officerSelectedStudents.length; i++) {
+//             if (
+//               officerSelectedStudents[i].department_name === department_name &&
+//               officerSelectedStudents[i].year_batch === year_batch
+//             ) {
+//               // find the department in the officer
+//               foundDepartment = true;
+//               officerSelectedStudents[i].confirmed = false;
+//               break;
+//             }
+//           }
 
-          if (!foundDepartment) {
-            // Error: Department not found in the officer
-            return res
-              .status(404)
-              .json({ message: "Department not found in the officer" });
-          }
+//           if (!foundDepartment) {
+//             // Error: Department not found in the officer
+//             return res
+//               .status(404)
+//               .json({ message: "Department not found in the officer" });
+//           }
 
-          const subscribed_officer = Company.subscribed_officer;
-          let foundSubscribedOfficer: subscribedOfficer | null = null;
-          for (let i = 0; i < subscribed_officer.length; i++) {
-            if (subscribed_officer[i].officer_id === tokenVerify.data) {
-              // find the officer in the company
-              foundSubscribedOfficer = subscribed_officer[i];
-              break;
-            }
-          }
+//           const subscribed_officer = Company.subscribed_officer;
+//           let foundSubscribedOfficer: subscribedOfficer | null = null;
+//           for (let i = 0; i < subscribed_officer.length; i++) {
+//             if (subscribed_officer[i].officer_id === tokenVerify.data) {
+//               // find the officer in the company
+//               foundSubscribedOfficer = subscribed_officer[i];
+//               break;
+//             }
+//           }
 
-          if (foundSubscribedOfficer === null) {
-            // Error: Officer not found in the company
-            return res
-              .status(404)
-              .json({ message: "Officer not found in the company" });
-          }
+//           if (foundSubscribedOfficer === null) {
+//             // Error: Officer not found in the company
+//             return res
+//               .status(404)
+//               .json({ message: "Officer not found in the company" });
+//           }
 
-          const companySelectedStudents: selectedStudentsInterface[] =
-            foundSubscribedOfficer.selectedbycompany;
+//           const companySelectedStudents: selectedStudentsInterface[] =
+//             foundSubscribedOfficer.selectedbycompany;
 
-          let foundDepartmentInCompany: Boolean = false;
-          for (let i = 0; i < companySelectedStudents.length; i++) {
-            if (
-              companySelectedStudents[i].department_name === department_name &&
-              companySelectedStudents[i].year_batch === year_batch
-            ) {
-              // find the department in the company
-              foundDepartmentInCompany = true;
-              companySelectedStudents[i].confirmed = false;
-              break;
-            }
-          }
+//           let foundDepartmentInCompany: Boolean = false;
+//           for (let i = 0; i < companySelectedStudents.length; i++) {
+//             if (
+//               companySelectedStudents[i].department_name === department_name &&
+//               companySelectedStudents[i].year_batch === year_batch
+//             ) {
+//               // find the department in the company
+//               foundDepartmentInCompany = true;
+//               companySelectedStudents[i].confirmed = false;
+//               break;
+//             }
+//           }
 
-          if (!foundDepartmentInCompany) {
-            // Error: Department not found in the company
-            return res
-              .status(404)
-              .json({ message: "Department not found in the company" });
-          }
+//           if (!foundDepartmentInCompany) {
+//             // Error: Department not found in the company
+//             return res
+//               .status(404)
+//               .json({ message: "Department not found in the company" });
+//           }
 
-          // save the data
-          const savedOfficerDetails = await Officer.save();
-          const savedCompanyDetails = await Company.save();
+//           // save the data
+//           const savedOfficerDetails = await Officer.save();
+//           const savedCompanyDetails = await Company.save();
 
-          if (!savedOfficerDetails || !savedCompanyDetails) {
-            // Error: Error in saving the officer details
-            return res
-              .status(400)
-              .json({ message: "Error in saving the officer details" });
-          } else {
-            // Success: Successfully confirmed the selected students
-            return res.status(200).json({
-              message: "Successfully confirmed the selected students",
-            });
-          }
-        }
-      }
-    } else {
-      // error:
-      return res
-        .status(500)
-        .json({ message: "Problem in verifying the token" });
-    }
-  } catch (e) {
-    // error:
-    return res.status(500).json({ message: "Server Error" });
-  }
-};
+//           if (!savedOfficerDetails || !savedCompanyDetails) {
+//             // Error: Error in saving the officer details
+//             return res
+//               .status(400)
+//               .json({ message: "Error in saving the officer details" });
+//           } else {
+//             // Success: Successfully confirmed the selected students
+//             return res.status(200).json({
+//               message: "Successfully confirmed the selected students",
+//             });
+//           }
+//         }
+//       }
+//     } else {
+//       // error:
+//       return res
+//         .status(500)
+//         .json({ message: "Problem in verifying the token" });
+//     }
+//   } catch (e) {
+//     // error:
+//     return res.status(500).json({ message: "Server Error" });
+//   }
+// };
 
 // get all selected students department wise and batch-year wise with Date Provided
 export const getAllSelectedStudentsByCompanies = async (
@@ -2447,65 +2350,49 @@ export const getAllSelectedStudentsByCompanies = async (
   res: Response
 ) => {
   try {
-    const bearerHeader = req.headers.authorization;
-    const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(
-      bearer.split(" ")[1],
-      SecretKey
-    ) as jwt.JwtPayload;
-    if (tokenVerify) {
-      const officer = await OfficerModel.findById({ _id: tokenVerify.data });
+    const { tokenVerify } = req.body;
+    const officer = await OfficerModel.findById({ _id: tokenVerify.data });
 
-      if (!officer) {
-        return res.status(404).json({ message: "Officer not found" });
-      } else {
-        const { company_id, department_name, year_batch } = req.body;
-        if (!company_id || !department_name || !year_batch) {
-          return res.status(400).json({ message: "Incomplete Data" });
-        } else {
-          // find the company in the officer
+    if (!officer) {
+      return res.status(404).json({ message: "Officer not found" });
+    } else {
+      const { company_id, department_name, year_batch } = req.body;
+      // find the company in the officer
 
-          let foundCompany: subscribedCompany | null = null;
-          for (let i = 0; i < officer.subscribed_company.length; i++) {
-            if (officer.subscribed_company[i].company_id === company_id) {
-              foundCompany = officer.subscribed_company[i];
-              break;
-            }
-          }
-
-          if (foundCompany === null) {
-            return res.status(404).json({ message: "Company not found" });
-          } else {
-            // find the department in the company
-            const yearBatch = parseInt(year_batch);
-            let foundDepartment: selectedStudentsInterface | null = null;
-            for (let i = 0; i < foundCompany.selectedbycompany.length; i++) {
-              if (
-                foundCompany.selectedbycompany[i].department_name ===
-                  department_name &&
-                foundCompany.selectedbycompany[i].year_batch === yearBatch
-              ) {
-                foundDepartment = foundCompany.selectedbycompany[i];
-                break;
-              }
-            }
-
-            if (foundDepartment === null) {
-              return res.status(404).json({ message: "Department not found" });
-            } else {
-              return res.status(200).json({
-                message: "Get All Selected Students Successful",
-                data: foundDepartment,
-              });
-            }
-          }
+      let foundCompany: subscribedCompany | null = null;
+      for (let i = 0; i < officer.subscribed_company.length; i++) {
+        if (officer.subscribed_company[i].company_id === company_id) {
+          foundCompany = officer.subscribed_company[i];
+          break;
         }
       }
-    } else {
-      // error:
-      return res
-        .status(500)
-        .json({ message: "Problem in verifying the token" });
+
+      if (foundCompany === null) {
+        return res.status(404).json({ message: "Company not found" });
+      } else {
+        // find the department in the company
+        const yearBatch = parseInt(year_batch);
+        let foundDepartment: selectedStudentsInterface | null = null;
+        for (let i = 0; i < foundCompany.selectedbycompany.length; i++) {
+          if (
+            foundCompany.selectedbycompany[i].department_name ===
+              department_name &&
+            foundCompany.selectedbycompany[i].year_batch === yearBatch
+          ) {
+            foundDepartment = foundCompany.selectedbycompany[i];
+            break;
+          }
+        }
+
+        if (foundDepartment === null) {
+          return res.status(404).json({ message: "Department not found" });
+        } else {
+          return res.status(200).json({
+            message: "Get All Selected Students Successful",
+            data: foundDepartment,
+          });
+        }
+      }
     }
   } catch (error) {
     // Error:
@@ -2518,49 +2405,37 @@ export const getCollegeDepartmentAndYears = async (
   res: Response
 ) => {
   try {
-    const bearerHeader = req.headers.authorization;
-    const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(
-      bearer.split(" ")[1],
-      SecretKey
-    ) as jwt.JwtPayload;
-    if (tokenVerify) {
-      const officer = await OfficerModel.findById({ _id: tokenVerify.data });
+    const { tokenVerify } = req.body;
+    const officer = await OfficerModel.findById({ _id: tokenVerify.data });
 
-      if (!officer) {
-        // Error
-        return res.status(404).json({ message: "Officer not found" });
-      } else {
-        let details: batchwiseDepartmentsInterface[] = [];
-        officer.college_details.map((e: Department) => {
-          // finding the department in details array
-          const data = details.find((obj) => obj.year_batch === e.year_batch);
-          if (data) {
-            data.departments = [...data.departments, e.department_name];
-          } else {
-            // if not found push new details
-            details.push({
-              departments: [e.department_name],
-              year_batch: e.year_batch,
-            });
-          }
-        });
-
-        if (details.length !== 0) {
-          //Success: Data Successfully send
-          return res.status(200).json({
-            message: "Fetching the department name and year is successful",
-            data: details,
-          });
-        } else {
-          return res.status(200).json({ message: "No Data Found" });
-        }
-      }
+    if (!officer) {
+      // Error
+      return res.status(404).json({ message: "Officer not found" });
     } else {
-      // Error:
-      return res
-        .status(500)
-        .json({ message: "Problem in verifying the token" });
+      let details: batchwiseDepartmentsInterface[] = [];
+      officer.college_details.map((e: Department) => {
+        // finding the department in details array
+        const data = details.find((obj) => obj.year_batch === e.year_batch);
+        if (data) {
+          data.departments = [...data.departments, e.department_name];
+        } else {
+          // if not found push new details
+          details.push({
+            departments: [e.department_name],
+            year_batch: e.year_batch,
+          });
+        }
+      });
+
+      if (details.length !== 0) {
+        //Success: Data Successfully send
+        return res.status(200).json({
+          message: "Fetching the department name and year is successful",
+          data: details,
+        });
+      } else {
+        return res.status(200).json({ message: "No Data Found" });
+      }
     }
   } catch (e) {
     // Error:
@@ -2705,105 +2580,87 @@ export const getAllStudentsAccordingToAchievementsAndSkills = async (
   res: Response
 ) => {
   try {
-    const bearerHeader = req.headers.authorization;
-    const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(
-      bearer.split(" ")[1],
-      SecretKey
-    ) as jwt.JwtPayload;
-    if (tokenVerify) {
-      const { search, dept, year_batch } = req.body;
-      if (!search) {
-        // Error:
-        return res.status(400).json({ message: "Incomplete Data" });
-      } else {
-        const officer = await OfficerModel.findById({ _id: tokenVerify.data });
-        if (!officer) {
-          // Error:
-          return res.status(404).json({ message: "Officer not found" });
-        } else if (dept || year_batch) {
-          let department: Department[] = [];
-          if (!dept && year_batch) {
-            department = officer.college_details.filter(
-              (e) => e.year_batch === year_batch
-            );
-          } else if (dept && !year_batch) {
-            department = officer.college_details.filter(
-              (e) => e.department_name === dept
-            );
-          } else if (dept && year_batch) {
-            department = officer.college_details.filter(
-              (e) => e.department_name === dept && e.year_batch === year_batch
-            );
-          }
+    const { search, dept, year_batch, tokenVerify } = req.body;
+    const officer = await OfficerModel.findById({ _id: tokenVerify.data });
+    if (!officer) {
+      // Error:
+      return res.status(404).json({ message: "Officer not found" });
+    } else if (dept || year_batch) {
+      let department: Department[] = [];
+      if (!dept && year_batch) {
+        department = officer.college_details.filter(
+          (e) => e.year_batch === year_batch
+        );
+      } else if (dept && !year_batch) {
+        department = officer.college_details.filter(
+          (e) => e.department_name === dept
+        );
+      } else if (dept && year_batch) {
+        department = officer.college_details.filter(
+          (e) => e.department_name === dept && e.year_batch === year_batch
+        );
+      }
 
-          if (department.length !== 0) {
-            const searchRegex = new RegExp(search, "i"); // Case-insensitive regex for partial string search
+      if (department.length !== 0) {
+        const searchRegex = new RegExp(search, "i"); // Case-insensitive regex for partial string search
 
-            let students: Students[] = [];
+        let students: Students[] = [];
 
-            for (let i = 0; i < department.length; i++) {
-              const filteredStudents = department[i].student_details.filter(
-                (student) =>
-                  student.achievements.some((achievement) =>
-                    searchRegex.test(achievement)
-                  ) || student.skills.some((skill) => searchRegex.test(skill))
-              );
-              students = students.concat(filteredStudents);
-            }
-
-            students = students.filter((e) => {
-              return e.Internship_status === false;
-            });
-
-            if (students.length === 0) {
-              // Error:
-              return res.status(404).json({ message: "No Students Found" });
-            } else {
-              // Success:
-              return res.status(200).json({
-                message: "Students Found Successfully",
-                data: students,
-              });
-            }
-          } else {
-            return res
-              .status(404)
-              .json({ message: "Department or batch year not found" });
-          }
-        } else {
-          const searchRegex = new RegExp(search, "i"); // Case-insensitive regex for partial string search
-
-          let students = officer.college_details.flatMap((details) =>
-            details.student_details.filter(
-              (student) =>
-                student.achievements.some((achievement) =>
-                  searchRegex.test(achievement)
-                ) || student.skills.some((skill) => searchRegex.test(skill))
-            )
+        for (let i = 0; i < department.length; i++) {
+          const filteredStudents = department[i].student_details.filter(
+            (student) =>
+              student.achievements.some((achievement) =>
+                searchRegex.test(achievement)
+              ) || student.skills.some((skill) => searchRegex.test(skill))
           );
-
-          students = students.filter((e) => {
-            return e.Internship_status === false;
-          });
-
-          if (students.length === 0) {
-            // Error:
-            return res.status(404).json({ message: "No Students Found" });
-          } else {
-            // Success:
-            return res.status(200).json({
-              message: "Students Found Successfully",
-              data: students,
-            });
-          }
+          students = students.concat(filteredStudents);
         }
+
+        students = students.filter((e) => {
+          return e.Internship_status === false;
+        });
+
+        if (students.length === 0) {
+          // Error:
+          return res.status(404).json({ message: "No Students Found" });
+        } else {
+          // Success:
+          return res.status(200).json({
+            message: "Students Found Successfully",
+            data: students,
+          });
+        }
+      } else {
+        return res
+          .status(404)
+          .json({ message: "Department or batch year not found" });
       }
     } else {
-      // Error:
-      return res
-        .status(500)
-        .json({ message: "Problem in verifying the token" });
+      const searchRegex = new RegExp(search, "i"); // Case-insensitive regex for partial string search
+
+      let students = officer.college_details.flatMap((details) =>
+        details.student_details.filter(
+          (student) =>
+            student.achievements.some((achievement) =>
+              searchRegex.test(achievement)
+            ) || student.skills.some((skill) => searchRegex.test(skill))
+        )
+      );
+
+      students = students.filter((e) => {
+        return e.Internship_status === false;
+      });
+
+      if (students.length === 0) {
+        // Error:
+        return res.status(404).json({ message: "No Students Found" });
+      } else {
+        // Success:
+        return res.status(200).json({
+          message: "Students Found Successfully",
+          data: students,
+        });
+      }
     }
   } catch (e) {
     // Error:
@@ -2813,114 +2670,100 @@ export const getAllStudentsAccordingToAchievementsAndSkills = async (
 
 export const sendMoreStudentDetails = async (req: Request, res: Response) => {
   try {
-    const bearerHeader = req.headers.authorization;
-    const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(
-      bearer.split(" ")[1],
-      SecretKey
-    ) as jwt.JwtPayload;
-    if (tokenVerify) {
-      const {
-        department_name,
-        year_batch,
-        student_details,
-        company_id,
-        message,
-      } = req.body;
-      if (!department_name || !year_batch || !student_details || !company_id) {
-        // Error:
-        return res.status(400).json({ message: "Incomplete Data" });
-      } else {
-        const officer = await OfficerModel.findById({ _id: tokenVerify.data });
-        const company = await CompanyModel.findById({ _id: company_id });
+    const {
+      department_name,
+      year_batch,
+      student_details,
+      company_id,
+      message,
+      tokenVerify,
+    } = req.body;
+    const officer = await OfficerModel.findById({ _id: tokenVerify.data });
+    const company = await CompanyModel.findById({ _id: company_id });
 
-        if (!officer || !company) {
-          return res
-            .status(404)
-            .json({ message: "Officer or Company not found" });
+    if (!officer || !company) {
+      return res.status(404).json({ message: "Officer or Company not found" });
+    }
+
+    const officerSubscribed = officer?.subscribed_company.find(
+      (e: subscribedCompany) => {
+        if (e.company_id.toString() === company_id.toString()) {
+          return e;
         }
-
-        const officerSubscribed = officer?.subscribed_company.find(
-          (e: subscribedCompany) => {
-            if (e.company_id.toString() === company_id.toString()) {
-              return e;
+      }
+    );
+    if (officerSubscribed === undefined) {
+      return res
+        .status(404)
+        .json({ message: "Company not found in the officer" });
+    } else {
+      const companySubscribed = company?.subscribed_officer.find(
+        (e: subscribedOfficer) => {
+          if (e.officer_id.toString() === tokenVerify.data.toString()) {
+            return e;
+          }
+        }
+      );
+      if (companySubscribed === undefined) {
+        return res
+          .status(404)
+          .json({ message: "Officer not found in the company" });
+      } else {
+        let foundDepartmentinOfficer: Boolean = false;
+        let foundDepartmentinCompany: Boolean = false;
+        officerSubscribed.selectedbyOfficer.map(
+          (e: selectedStudentsInterface) => {
+            if (
+              e.department_name === department_name &&
+              e.year_batch === year_batch
+            ) {
+              foundDepartmentinOfficer = true;
+              e.student_details = student_details;
             }
           }
         );
-        if (officerSubscribed === undefined) {
-          return res
-            .status(404)
-            .json({ message: "Company not found in the officer" });
-        } else {
-          const companySubscribed = company?.subscribed_officer.find(
-            (e: subscribedOfficer) => {
-              if (e.officer_id.toString() === tokenVerify.data.toString()) {
-                return e;
-              }
-            }
-          );
-          if (companySubscribed === undefined) {
-            return res
-              .status(404)
-              .json({ message: "Officer not found in the company" });
-          } else {
-            let foundDepartmentinOfficer: Boolean = false;
-            let foundDepartmentinCompany: Boolean = false;
-            officerSubscribed.selectedbyOfficer.map(
-              (e: selectedStudentsInterface) => {
-                if (
-                  e.department_name === department_name &&
-                  e.year_batch === year_batch
-                ) {
-                  foundDepartmentinOfficer = true;
-                  e.student_details = student_details;
-                }
-              }
-            );
-            companySubscribed.selectedbycompany.map(
-              (e: selectedStudentsInterface) => {
-                if (
-                  e.department_name === department_name &&
-                  e.year_batch === year_batch
-                ) {
-                  foundDepartmentinCompany = true;
-                  e.student_details = student_details;
-                }
-              }
-            );
-
-            if (!foundDepartmentinOfficer && !foundDepartmentinCompany) {
-              officerSubscribed.selectedbyOfficer.push({
-                department_name: department_name,
-                year_batch: year_batch,
-                student_details: student_details,
-                start_date: null,
-                end_date: null,
-                message: message,
-                confirmed: false,
-              });
-              companySubscribed.selectedbyOfficer.push({
-                department_name: department_name,
-                year_batch: year_batch,
-                student_details: student_details,
-                start_date: null,
-                end_date: null,
-                message: message,
-                confirmed: false,
-              });
-              await officer?.save();
-              await company?.save();
-              return res.status(200).json({
-                message: "Successfully sent the more student details",
-              });
-            } else if (foundDepartmentinOfficer && foundDepartmentinCompany) {
-              await officer?.save();
-              await company?.save();
-              return res.status(200).json({
-                message: "Successfully sent the more student details",
-              });
+        companySubscribed.selectedbycompany.map(
+          (e: selectedStudentsInterface) => {
+            if (
+              e.department_name === department_name &&
+              e.year_batch === year_batch
+            ) {
+              foundDepartmentinCompany = true;
+              e.student_details = student_details;
             }
           }
+        );
+
+        if (!foundDepartmentinOfficer && !foundDepartmentinCompany) {
+          officerSubscribed.selectedbyOfficer.push({
+            department_name: department_name,
+            year_batch: year_batch,
+            student_details: student_details,
+            start_date: null,
+            end_date: null,
+            message: message,
+            confirmed: false,
+          });
+          companySubscribed.selectedbyOfficer.push({
+            department_name: department_name,
+            year_batch: year_batch,
+            student_details: student_details,
+            start_date: null,
+            end_date: null,
+            message: message,
+            confirmed: false,
+          });
+          await officer?.save();
+          await company?.save();
+          return res.status(200).json({
+            message: "Successfully sent the more student details",
+          });
+        } else if (foundDepartmentinOfficer && foundDepartmentinCompany) {
+          await officer?.save();
+          await company?.save();
+          return res.status(200).json({
+            message: "Successfully sent the more student details",
+          });
         }
       }
     }
@@ -2934,45 +2777,32 @@ export const sendMoreStudentDetails = async (req: Request, res: Response) => {
 
 export const getMessage = async (req: Request, res: Response) => {
   try {
-    const bearerHeader = req.headers.authorization;
-    const bearer: string = bearerHeader as string;
-    const tokenVerify = jwt.verify(
-      bearer.split(" ")[1],
-      SecretKey
-    ) as jwt.JwtPayload;
-    if (tokenVerify) {
-      const { company_id } = req.body;
-      if (!company_id) {
-        // Error: Incomplete Data
-        return res.status(400).json({ message: "Incomplete Data" });
-      }
-      const officer = await OfficerModel.findById({ _id: tokenVerify.data });
-      if (!officer) {
-        //Error
-        return res.status(404).json({ message: "Officer not found" });
-      } else {
-        const foundCompany = officer.subscribed_company.find((e) => {
-          if (e.company_id === company_id) {
-            return e;
-          }
-        });
-
-        if (!foundCompany) {
-          //Error
-          return res.status(404).json({ message: "Company not found" });
-        } else {
-          // Success: Successfully fetched the message
-          return res.status(200).json({
-            message: "Successfully fetched the message",
-            data: foundCompany.message,
-          });
-        }
-      }
+    const { company_id, tokenVerify } = req.body;
+    if (!company_id) {
+      // Error: Incomplete Data
+      return res.status(400).json({ message: "Incomplete Data" });
+    }
+    const officer = await OfficerModel.findById({ _id: tokenVerify.data });
+    if (!officer) {
+      //Error
+      return res.status(404).json({ message: "Officer not found" });
     } else {
-      // Error:
-      return res
-        .status(500)
-        .json({ message: "Problem in verifying the token" });
+      const foundCompany = officer.subscribed_company.find((e) => {
+        if (e.company_id === company_id) {
+          return e;
+        }
+      });
+
+      if (!foundCompany) {
+        //Error
+        return res.status(404).json({ message: "Company not found" });
+      } else {
+        // Success: Successfully fetched the message
+        return res.status(200).json({
+          message: "Successfully fetched the message",
+          data: foundCompany.message,
+        });
+      }
     }
   } catch (error) {
     // Error:

@@ -29,9 +29,7 @@ import {
   addCancelledRequestByOfficer,
   getAllSelectedStudentsByCompanies,
   getCollegeDepartmentAndYears,
-  makeSelectedStudentsavailableFailed,
   confirmSelectedStudentsWithNoDateProvided,
-  makeSelectedStudentsUnavailableConfirm,
   giveEmailToCompanyAndOfficerRegardingAccess,
   getAllStudentsAccordingToAchievementsAndSkills,
   confirmSelectedStudentsWithDates,
@@ -50,6 +48,15 @@ import {
   deleteOneStudentDetailsMiddleware,
   convertStudentsCSVtoJSONMiddleware,
   getStudentDetailsbyDeptAndYearMiddleware,
+  addCancelledRequestMiddleware,
+  addSubscribeRequestToCompanyMiddleware,
+  confirmSelectedStudentsWithDatesMiddlware,
+  confirmSelectedStudentsWithNoDateProvidedMiddleware,
+  getAllCompaniesByFilterInChunksWithSearchMiddleware,
+  getAllSelectedStudentsByCompaniesMiddleware,
+  getAllStudentsAccordingToAchievementsAndSkillsMiddleware,
+  sendMoreStudentDetailsMiddleware,
+  getMessageMiddleware,
 } from "../middleware/officer";
 
 // Set up multer storage
@@ -132,40 +139,80 @@ router.post(
 );
 
 // cancle request of company
-router.put("/addCancelledRequest", addCancelledRequest);
+router.put(
+  "/addCancelledRequest",
+  addCancelledRequestMiddleware,
+  addCancelledRequest
+);
 
 // cancle request by officer
-router.put("/addCancelledRequestByOfficer", addCancelledRequestByOfficer);
+router.put(
+  "/addCancelledRequestByOfficer",
+  addCancelledRequestMiddleware,
+  addCancelledRequestByOfficer
+);
 
 // add Request from officer to company
-router.post("/addSubscribeRequestToCompany", addSubscribeRequestToCompany);
+router.post(
+  "/addSubscribeRequestToCompany",
+  addSubscribeRequestToCompanyMiddleware,
+  addSubscribeRequestToCompany
+);
 
 // add subscription to the Officers
-router.put("/addSubscribedOfficerFromOfficer", addSubscribedOfficerFromOfficer);
+router.put(
+  "/addSubscribedOfficerFromOfficer",
+  addCancelledRequestMiddleware,
+  addSubscribedOfficerFromOfficer
+);
 
 // give access to companies by passing access and company_id
 // router.put("/giveAccessToCompanies", giveAccessToCompanies);
 
 // get All Requested companies details
-router.get("/getAllRequestedCompanies", getAllRequestedCompanies);
+router.get(
+  "/getAllRequestedCompanies",
+  normalMiddleware,
+  getAllRequestedCompanies
+);
 
 // get All Subscribed companies details
-router.get("/getAllRequestsbyOfficer", getAllRequestsbyOfficer);
+router.get(
+  "/getAllRequestsbyOfficer",
+  normalMiddleware,
+  getAllRequestsbyOfficer
+);
 
 // get All cancelled companies
-router.get("/getAllCancelledRequests", getAllCancelledRequests);
+router.get(
+  "/getAllCancelledRequests",
+  normalMiddleware,
+  getAllCancelledRequests
+);
 
 // get All subscribed Companies
-router.get("/getAllSubscribedCompanies", getAllSubscribedCompanies);
+router.get(
+  "/getAllSubscribedCompanies",
+  normalMiddleware,
+  getAllSubscribedCompanies
+);
 
 // get All Officers filtered with respect to AllSubscribedOfficers, AllRequestsbyCompany, AllRequestedOfficers
-router.get("/getAllCompanyByFilter", getAllCompanyByFilter);
+router.get("/getAllCompanyByFilter", normalMiddleware, getAllCompanyByFilter);
 
 // get Department and year list for access in officer
-router.get("/getCollegeDepartmentAndYears", getCollegeDepartmentAndYears);
+router.get(
+  "/getCollegeDepartmentAndYears",
+  normalMiddleware,
+  getCollegeDepartmentAndYears
+);
 
 // get Searched Companies with respect to AllSubscribedOfficers, AllRequestsbyCompany, AllRequestedOfficers
-router.post("/getCompaniesBySearch", getAllCompaniesByFilterInChunksWithSearch);
+router.post(
+  "/getCompaniesBySearch",
+  getAllCompaniesByFilterInChunksWithSearchMiddleware,
+  getAllCompaniesByFilterInChunksWithSearch
+);
 
 // get All available and unavailable students
 router.post(
@@ -177,34 +224,42 @@ router.post(
 // get All selected students by companies
 router.post(
   "/getAllSelectedStudentsByCompanies",
+  getAllSelectedStudentsByCompaniesMiddleware,
   getAllSelectedStudentsByCompanies
 );
 
 // make selected students unavailable without Dates
 router.put(
   "/confirmSelectedStudentsWithNoDateProvided",
+  confirmSelectedStudentsWithNoDateProvidedMiddleware,
   confirmSelectedStudentsWithNoDateProvided
 );
 
 // make selected students unavailable with Dates
 router.put(
   "/confirmSelectedStudentsWithDates",
+  confirmSelectedStudentsWithDatesMiddlware,
   confirmSelectedStudentsWithDates
 );
 
 // send email to company and officer regarding Access
-router.put(
-  "/giveEmailToCompanyAndOfficerRegardingAccess",
-  giveEmailToCompanyAndOfficerRegardingAccess
-);
+// router.put(
+//   "/giveEmailToCompanyAndOfficerRegardingAccess",
+//   giveEmailToCompanyAndOfficerRegardingAccess
+// );
 
 router.put(
   "/getSearchStudents",
+  getAllStudentsAccordingToAchievementsAndSkillsMiddleware,
   getAllStudentsAccordingToAchievementsAndSkills
 );
 
-router.put("/setMoreStudentInCompany", sendMoreStudentDetails);
+router.put(
+  "/setMoreStudentInCompany",
+  sendMoreStudentDetailsMiddleware,
+  sendMoreStudentDetails
+);
 
-router.get("/getMessage", getMessage);
+router.post("/getMessage", getMessageMiddleware, getMessage);
 
 export default router;
