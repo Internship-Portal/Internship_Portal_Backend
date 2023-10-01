@@ -1,32 +1,80 @@
-import express, { Request, Response } from "express";
+import express from "express";
 import cors from "cors";
-require("dotenv").config();
+import connects from "./utils/DB";
+import helmet from "helmet";
+import bodyParser from "body-parser";
+import logger from "morgan";
+import createError from "http-errors";
+import cookieParser from "cookie-parser";
+const PORT = process.env.PORT || 8000;
 
+// Express
 const app = express();
-const PORT = process.env.PORT || 4000;
-app.use(cors());
 app.use(express.json());
-app.use(
-  express.urlencoded({ extended: false, limit: 100000, parameterLimit: 6 })
-);
 
-// Officer Routes Connection
-import OfficerRouter from "./routes/officer";
-app.use("/api/officer", OfficerRouter);
+// Helmet (Security)
+app.use(helmet());
 
-// Company Routes Connection
-import CompanyRouter from "./routes/Company";
-app.use("/api/company", CompanyRouter);
+// Cors
+const corsOptions = {
+  origin: "*",
+};
+app.use(cors(corsOptions));
 
-// OTP Routes Connection
-import OTPRouter from "./routes/otp";
-app.use("/api/otp", OTPRouter);
+// Cookie Parser
+app.use(cookieParser());
 
-// Connecting to the Mongo DB from config folder
-import connects from "./config/db";
+// Logger of Requests //! Remove in production
+app.use(logger("dev"));
+
+// BodyParser
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+
+app.use(function (req, res, next) {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Origin, X-Requested-With, Content-Type, Accept, access-control-allow-origin"
+  );
+  next();
+});
+
+// Mongo Connection
 connects();
 
-// Listening to the port
+app.get("/", (req, res) => {
+  res.send("Hello World");
+});
+
+import UserRoutes from "./routes/User";
+app.use("/api/user", UserRoutes);
+
+import PaymentRoutes from "./routes/Payment";
+app.use("/api/payment", PaymentRoutes);
+
+import ProjectRoutes from "./routes/Project";
+app.use("/api/project", ProjectRoutes);
+
+import VerificationRoutes from "./routes/Verification";
+app.use("/api/verification", VerificationRoutes);
+
+import RecoveryRoutes from "./routes/Recovery";
+app.use("/api/recovery", RecoveryRoutes);
+
+import BiddingRoutes from "./routes/Bidding";
+app.use("/api/bidding", BiddingRoutes);
+
+//error handlings
+app.use(function (req, res, next) {
+  next(
+    createError(
+      404,
+      "Invalid API. Use the official documentation to get the list of valid APIS."
+    )
+  );
+});
+
 app.listen(PORT, () => {
-  console.log(`Running on PORT ${PORT}`);
+  console.log(`Server is running on port ${PORT}`);
 });
